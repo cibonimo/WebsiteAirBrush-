@@ -4,102 +4,41 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Sign Up — AirBrush</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/>
 <!-- MediaPipe -->
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-<!-- face-api.js -->
-<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <style>
-  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
-  .step-badge {
-    display:inline-block;
-    background:linear-gradient(135deg,#7C3AED,#06B6D4);
-    color:#fff;
-    border-radius:20px;
-    padding:4px 14px;
-    font-size:0.75rem;
-    margin-bottom:0.75rem;
-  }
-  .face-capture-box {
-    position:relative;
-    width:100%;
-    aspect-ratio:4/3;
-    background:#0a0a0f;
-    border-radius:12px;
-    overflow:hidden;
-    margin:1rem 0;
-    border:1px solid rgba(255,255,255,0.08);
-    display:none;
-  }
-  .face-capture-box video {
-    width:100%;height:100%;object-fit:cover;
-    transform:scaleX(-1);
-  }
-  .face-capture-box canvas {
-    position:absolute;top:0;left:0;width:100%;height:100%;
-    transform:scaleX(-1);
-  }
-  .countdown-ring {
-    position:absolute;
-    top:50%;left:50%;
-    transform:translate(-50%,-50%);
-    font-size:4rem;
-    color:#06B6D4;
-    font-weight:700;
-    text-shadow:0 0 20px #06B6D4;
-    display:none;
-    pointer-events:none;
-  }
-  .gesture-webcam-box {
-    position:relative;
-    width:100%;aspect-ratio:4/3;
-    background:#0a0a0f;
-    border-radius:12px;
-    overflow:hidden;
-    border:1px solid rgba(255,255,255,0.08);
-  }
-  .gesture-webcam-box video {
-    width:100%;height:100%;object-fit:cover;
-    transform:scaleX(-1);
-  }
-  .gesture-webcam-box canvas {
-    position:absolute;top:0;left:0;width:100%;height:100%;
-    pointer-events:none;
-  }
-  .pin-display {
-    text-align:center;
-    font-size:2.5rem;
-    letter-spacing:0.8rem;
-    margin:1rem 0;
-    color:var(--accent2);
-    font-family:'Calibri Light',Calibri,sans-serif !important;
-  }
-  .digit-confirmed { color:#22c55e !important; }
-  .status-msg {
-    text-align:center;
-    font-size:0.9rem;
-    color:#06B6D4;
-    margin:0.5rem 0;
-    min-height:1.4em;
-  }
-  .gesture-instruction {
-    font-size:0.88rem;
-    color:var(--text-muted);
-    text-align:center;
-    margin:0.5rem 0;
-  }
-  .btn-submit-green {
-    background:linear-gradient(135deg,#22c55e,#16a34a) !important;
-  }
-  .face-check-text {
-    text-align:center;
-    color:#06B6D4;
-    font-size:0.88rem;
-    margin:0.5rem 0;
-  }
+* { font-family: 'Caveat', cursive !important; }
+.gesture-webcam-box {
+  position:relative;width:100%;aspect-ratio:4/3;
+  background:#0a0a0f;border-radius:12px;overflow:hidden;
+  border:1px solid rgba(255,255,255,0.08);
+}
+.gesture-webcam-box video {
+  width:100%;height:100%;object-fit:cover;
+  transform:scaleX(-1);
+}
+.gesture-webcam-box canvas {
+  position:absolute;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;
+  transform:scaleX(-1);
+}
+.pin-display {
+  text-align:center;font-size:2.5rem;letter-spacing:0.8rem;
+  margin:1rem 0;color:var(--accent2);
+}
+.status-msg {
+  text-align:center;font-size:1rem;color:#06B6D4;
+  margin:0.5rem 0;min-height:1.4em;
+}
+.gesture-instruction {
+  font-size:1rem;color:var(--text-muted);
+  text-align:center;margin:0.5rem 0;
+}
+.btn-submit-green { background:linear-gradient(135deg,#22c55e,#16a34a) !important; }
 </style>
 </head>
 <body>
@@ -110,7 +49,6 @@
 
     <div class="auth-method-tabs">
       <button class="auth-method-btn active" data-method="email">📧 Email</button>
-      <button class="auth-method-btn" data-method="pattern">🔷 Air Pattern</button>
       <button class="auth-method-btn" data-method="pin">🔢 Air PIN</button>
     </div>
 
@@ -135,77 +73,255 @@
       <button class="btn-submit" id="email-signup-btn">Create Account</button>
     </div>
 
-    <!-- ===== AIR PATTERN SIGNUP ===== -->
-    <div id="method-pattern" style="display:none;">
-      <!-- Step 1: Name + draw pattern -->
-      <div id="pattern-step-1">
-        <div class="form-group">
-          <label>Full Name</label>
-          <input type="text" id="su-name-pattern" placeholder="Your name"/>
-        </div>
-        <p class="gesture-instruction">Draw your unlock pattern with your index finger in the air. The pattern will be traced on the camera. Click Save when done.</p>
-        <div class="gesture-webcam-box" id="pattern-webcam-box">
-          <video id="pattern-video" autoplay muted playsinline></video>
-          <canvas id="pattern-canvas"></canvas>
-        </div>
-        <div class="status-msg" id="pattern-status">Click "Start Camera" to begin.</div>
-        <button class="btn-submit" id="pattern-start-btn">Start Camera & Draw Pattern</button>
-        <button class="btn-submit btn-submit-green" id="pattern-save-btn" style="display:none;margin-top:0.75rem;">Save Pattern →</button>
-      </div>
-
-      <!-- Step 2: Face capture -->
-      <div id="pattern-step-2" style="display:none;">
-        <div class="step-badge">Step 2 of 2 — Face ID</div>
-        <p class="gesture-instruction">Look directly at the camera. Your face will be captured for 2FA login security.</p>
-        <div class="face-capture-box" id="pattern-face-box" style="display:block;">
-          <video id="pattern-face-video" autoplay muted playsinline></video>
-          <canvas id="pattern-face-canvas"></canvas>
-          <div class="countdown-ring" id="pattern-face-countdown"></div>
-        </div>
-        <div class="status-msg" id="pattern-face-status">Loading face detection…</div>
-        <button class="btn-submit" id="pattern-face-capture-btn">📷 Capture My Face</button>
-      </div>
-    </div>
-
     <!-- ===== AIR PIN SIGNUP ===== -->
     <div id="method-pin" style="display:none;">
-      <!-- Step 1: Name + enter PIN via fingers -->
       <div id="pin-step-1">
         <div class="form-group">
           <label>Full Name</label>
           <input type="text" id="su-name-pin" placeholder="Your name"/>
         </div>
-        <p class="gesture-instruction">Hold up fingers to set each digit (1–5 fingers = that digit). Hold still for 2 seconds to confirm each digit. Repeat for all 4 digits.</p>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="su-email-pin" placeholder="you@example.com"/>
+        </div>
+        <div class="form-group">
+          <label>Password (backup)</label>
+          <input type="password" id="su-password-pin" placeholder="Min 6 characters"/>
+        </div>
+        <p class="gesture-instruction">
+          Hold up fingers to set each digit (1–5 = one hand, 6–10 = sum both hands).<br/>
+          Hold still for 2 seconds to confirm each digit. Repeat for all 4 digits.
+        </p>
         <div class="gesture-webcam-box" id="pin-webcam-box">
           <video id="pin-video" autoplay muted playsinline></video>
           <canvas id="pin-canvas"></canvas>
         </div>
         <div class="pin-display" id="pin-display">_ _ _ _</div>
         <div class="status-msg" id="pin-status">Click "Start Camera" to begin.</div>
-        <button class="btn-submit" id="pin-start-btn">Start Camera & Set PIN</button>
-        <button class="btn-submit btn-submit-green" id="pin-save-btn" style="display:none;margin-top:0.75rem;">Save PIN →</button>
-      </div>
-
-      <!-- Step 2: Face capture -->
-      <div id="pin-step-2" style="display:none;">
-        <div class="step-badge">Step 2 of 2 — Face ID</div>
-        <p class="gesture-instruction">Look directly at the camera. Your face will be captured for 2FA login security.</p>
-        <div class="face-capture-box" id="pin-face-box" style="display:block;">
-          <video id="pin-face-video" autoplay muted playsinline></video>
-          <canvas id="pin-face-canvas"></canvas>
-          <div class="countdown-ring" id="pin-face-countdown"></div>
-        </div>
-        <div class="status-msg" id="pin-face-status">Loading face detection…</div>
-        <button class="btn-submit" id="pin-face-capture-btn">📷 Capture My Face</button>
+        <button class="btn-submit" id="pin-start-btn">Start Camera &amp; Set PIN</button>
+        <button class="btn-submit btn-submit-green" id="pin-save-btn" style="display:none;margin-top:0.75rem;">Save PIN &amp; Register →</button>
       </div>
     </div>
 
-    <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-top:1.5rem;">
+    <p style="text-align:center;color:var(--text-muted);font-size:1rem;margin-top:1.5rem;">
       Already have an account? <a href="login.html" style="color:var(--accent2);">Log In</a>
     </p>
   </div>
 </div>
 
-<script src="js/auth.js"></script>
+<script>
+'use strict';
+
+/* ── Tab Switcher ── */
+document.querySelectorAll('.auth-method-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.auth-method-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const m = btn.dataset.method;
+    ['email','pin'].forEach(k => {
+      const el = document.getElementById(`method-${k}`);
+      if (el) el.style.display = k === m ? '' : 'none';
+    });
+  });
+});
+
+/* ── Utilities ── */
+function getUsers() {
+  try { return JSON.parse(localStorage.getItem('ab_users') || '[]'); } catch { return []; }
+}
+function saveUsers(arr) { localStorage.setItem('ab_users', JSON.stringify(arr)); }
+function findUser(email) { return getUsers().find(u => u.email === email.toLowerCase()); }
+
+function toast(msg, type='info') {
+  let el = document.getElementById('ab-toast');
+  if (!el) {
+    el = document.createElement('div'); el.id = 'ab-toast';
+    Object.assign(el.style, {
+      position:'fixed',bottom:'24px',left:'50%',transform:'translateX(-50%)',
+      padding:'10px 22px',borderRadius:'10px',fontSize:'1rem',color:'#fff',
+      zIndex:'9999',pointerEvents:'none',fontFamily:"'Caveat',cursive",
+      transition:'opacity 0.3s',opacity:'0'
+    });
+    document.body.appendChild(el);
+  }
+  const colors = { info:'#7C3AED', success:'#16a34a', error:'#dc2626' };
+  el.style.background = colors[type] || colors.info;
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3000);
+}
+
+/* ══ EMAIL SIGNUP ══ */
+document.getElementById('email-signup-btn').addEventListener('click', () => {
+  const name    = document.getElementById('su-name-email').value.trim();
+  const email   = document.getElementById('su-email').value.trim().toLowerCase();
+  const pass    = document.getElementById('su-password').value;
+  const confirm = document.getElementById('su-confirm').value;
+  if (!name)           { toast('Please enter your name', 'error'); return; }
+  if (!email)          { toast('Please enter your email', 'error'); return; }
+  if (pass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  if (pass !== confirm){ toast('Passwords do not match', 'error'); return; }
+  if (findUser(email)) { toast('Email already registered', 'error'); return; }
+  const users = getUsers();
+  users.push({ type:'email', name, email, password: pass });
+  saveUsers(users);
+  toast('Account created! Please log in.', 'success');
+  setTimeout(() => window.location.href = 'login.html', 1200);
+});
+
+/* ══ AIR PIN SIGNUP ══ */
+const PIN_STABLE_MS   = 2000;
+const PIN_MOVE_THRESH = 0.04;
+
+let pinStream    = null;
+let pinHands     = null;
+let pinDigits    = [];
+let pinCurrent   = -1;
+let pinStableStart = null;
+let pinLastPos   = null;
+let pinActive    = false;
+
+const pinVideo  = document.getElementById('pin-video');
+const pinCanvas = document.getElementById('pin-canvas');
+const pinCtx    = pinCanvas ? pinCanvas.getContext('2d') : null;
+
+function countAllFingers(allLandmarks) {
+  let total = 0;
+  for (const lm of allLandmarks) {
+    if (lm[4].x < lm[3].x) total++; // thumb
+    const tips=[8,12,16,20], pips=[6,10,14,18];
+    for (let i=0;i<4;i++) if (lm[tips[i]].y < lm[pips[i]].y) total++;
+  }
+  return total;
+}
+
+function updatePinDisplay() {
+  const el = document.getElementById('pin-display');
+  if (!el) return;
+  const chars = ['_','_','_','_'];
+  pinDigits.forEach((d,i) => { chars[i] = `<span style="color:#22c55e">${d}</span>`; });
+  el.innerHTML = chars.join(' ');
+}
+
+function setStatus(id, msg) {
+  const el = document.getElementById(id); if (el) el.textContent = msg;
+}
+
+document.getElementById('pin-start-btn')?.addEventListener('click', async () => {
+  const name     = document.getElementById('su-name-pin').value.trim();
+  const email    = document.getElementById('su-email-pin').value.trim().toLowerCase();
+  const pass     = document.getElementById('su-password-pin').value;
+  if (!name)           { toast('Please enter your name', 'error'); return; }
+  if (!email)          { toast('Please enter your email', 'error'); return; }
+  if (pass.length < 6) { toast('Password must be at least 6 characters', 'error'); return; }
+  if (findUser(email)) { toast('Email already registered — please log in', 'error'); return; }
+
+  setStatus('pin-status', 'Starting camera…');
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480 } });
+    pinVideo.srcObject = stream;
+    pinStream = stream;
+    await new Promise(r => pinVideo.addEventListener('loadedmetadata', r, { once:true }));
+    pinCanvas.width  = pinVideo.videoWidth;
+    pinCanvas.height = pinVideo.videoHeight;
+  } catch(e) { toast('Camera access denied', 'error'); return; }
+
+  pinDigits = []; pinActive = true; pinCurrent = -1; pinStableStart = null; pinLastPos = null;
+  updatePinDisplay();
+
+  if (!pinHands) {
+    pinHands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+    pinHands.setOptions({ maxNumHands:2, modelComplexity:1, minDetectionConfidence:0.7, minTrackingConfidence:0.7 });
+    pinHands.onResults(onPinResults);
+  }
+
+  const camera = new Camera(pinVideo, {
+    onFrame: async () => { if (pinActive) await pinHands.send({ image: pinVideo }); },
+    width:640, height:480
+  });
+  camera.start();
+
+  document.getElementById('pin-start-btn').style.display = 'none';
+  setStatus('pin-status', `Digit 1: Hold up 1–10 fingers still for 2 seconds.`);
+});
+
+function onPinResults(results) {
+  if (!pinCtx || !pinActive) return;
+  pinCtx.clearRect(0, 0, pinCanvas.width, pinCanvas.height);
+  if (pinDigits.length >= 4) return;
+
+  if (!results.multiHandLandmarks?.length) {
+    pinLastPos = null; pinStableStart = null;
+    setStatus('pin-status', `Digit ${pinDigits.length+1}: Show your hand to the camera.`);
+    return;
+  }
+
+  // Draw skeleton for each detected hand (mirrored — canvas has CSS scaleX(-1))
+  for (const lm of results.multiHandLandmarks) {
+    drawConnectors(pinCtx, lm, HAND_CONNECTIONS, { color:'rgba(124,58,237,0.8)', lineWidth:2 });
+    drawLandmarks(pinCtx, lm, { color:'#06B6D4', lineWidth:1, radius:3 });
+  }
+
+  const count = countAllFingers(results.multiHandLandmarks);
+  const wrist = results.multiHandLandmarks[0][0];
+
+  // Movement detection
+  const isMoving = pinLastPos
+    ? (Math.abs(wrist.x - pinLastPos.x) > PIN_MOVE_THRESH ||
+       Math.abs(wrist.y - pinLastPos.y) > PIN_MOVE_THRESH)
+    : false;
+  pinLastPos = { x: wrist.x, y: wrist.y };
+
+  if (isMoving) {
+    pinStableStart = null; pinCurrent = -1;
+    setStatus('pin-status', `Digit ${pinDigits.length+1}: Keep your hand still…`);
+    return;
+  }
+
+  if (count !== pinCurrent) {
+    pinCurrent = count; pinStableStart = Date.now();
+    setStatus('pin-status', `Digit ${pinDigits.length+1}: Showing ${count} — hold still…`);
+  } else if (pinStableStart && (Date.now() - pinStableStart) >= PIN_STABLE_MS) {
+    pinDigits.push(count);
+    pinStableStart = null; pinCurrent = -1; pinLastPos = null;
+    updatePinDisplay();
+    if (pinDigits.length < 4) {
+      setStatus('pin-status', `✅ Digit ${pinDigits.length} confirmed! Now digit ${pinDigits.length+1}.`);
+    } else {
+      setStatus('pin-status', '✅ All 4 digits set! Click Save to register.');
+      document.getElementById('pin-save-btn').style.display = '';
+      pinActive = false;
+    }
+  } else {
+    const elapsed = pinStableStart ? (Date.now() - pinStableStart) : 0;
+    const remain  = ((PIN_STABLE_MS - elapsed) / 1000).toFixed(1);
+    setStatus('pin-status', `Digit ${pinDigits.length+1}: ${count} finger${count!==1?'s':''} — ${remain}s to confirm`);
+  }
+
+  // Label on fingertip
+  if (results.multiHandLandmarks[0]) {
+    const lm   = results.multiHandLandmarks[0];
+    const tipX = lm[8].x * pinCanvas.width;
+    const tipY = lm[8].y * pinCanvas.height - 24;
+    pinCtx.fillStyle='#fff';
+    pinCtx.font='bold 20px Caveat, cursive';
+    pinCtx.fillText(`${count}`, tipX, tipY);
+  }
+}
+
+document.getElementById('pin-save-btn')?.addEventListener('click', () => {
+  if (pinDigits.length < 4) { toast('PIN not complete', 'error'); return; }
+  const name  = document.getElementById('su-name-pin').value.trim();
+  const email = document.getElementById('su-email-pin').value.trim().toLowerCase();
+  const pass  = document.getElementById('su-password-pin').value;
+  if (pinStream) pinStream.getTracks().forEach(t => t.stop());
+  const users = getUsers();
+  users.push({ type:'pin', name, email, password: pass, pin: pinDigits });
+  saveUsers(users);
+  toast('PIN registered! Please log in.', 'success');
+  setTimeout(() => window.location.href = 'login.html', 1200);
+});
+</script>
 </body>
 </html>
