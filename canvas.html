@@ -1,169 +1,423 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Draw — AirBrush</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css"/>
-</head>
-<body>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Canvas — AirBrush</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/canvas.css"/>
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<style>
+  /* ── Calibri Light globally ── */
+  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
 
-<!-- Auth guard -->
-<script>
-  if (!localStorage.getItem('airbrush_session')) {
-    window.location.href = 'login.html';
+  /* ── Particles background ── */
+  #particles-canvas {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;z-index:0;
   }
-</script>
+  .canvas-body { background:#000 !important; }
+  .canvas-nav, .canvas-layout, .left-panel, .cam-panel, .right-panel,
+  .draw-section, .ai-section, .gen-section { position:relative; z-index:1; }
 
-<!-- Minimal Navbar -->
-<nav class="navbar" style="position:relative;padding:0.75rem 1.5rem;">
-  <div class="nav-logo"><span class="logo-text">Airbrush</span></div>
-  <div class="nav-actions">
-    <a href="index.html" class="btn-nav-ghost">← Home</a>
-    <button class="btn-nav-ghost" onclick="localStorage.removeItem('airbrush_session');window.location.href='login.html'">Log Out</button>
+  /* ── Mirrored webcam ── */
+  #webcam { transform: scaleX(-1); }
+
+  /* ── Overlay canvas mirrors the video ── */
+  #overlay-canvas { transform: scaleX(-1); }
+
+  /* ── Smaller Start / Stop buttons ── */
+  #btn-start, #btn-stop {
+    padding: 5px 10px !important;
+    font-size: 0.78rem !important;
+    min-height: unset !important;
+  }
+
+  /* ── Smaller colour swatch display ── */
+  .swatch {
+    width: 20px !important;
+    height: 20px !important;
+    border-radius: 50% !important;
+  }
+  .color-picker {
+    width: 28px !important;
+    height: 28px !important;
+    padding: 0 !important;
+  }
+
+  /* ── Mic button states ── */
+  .voice-btn { transition: all 0.2s; }
+  .voice-btn.listening {
+    background: rgba(239,68,68,0.25) !important;
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 4px rgba(239,68,68,0.2), 0 0 16px rgba(239,68,68,0.3);
+    animation: micPulse 1s infinite;
+  }
+  @keyframes micPulse {
+    0%,100% { box-shadow: 0 0 0 4px rgba(239,68,68,0.2), 0 0 16px rgba(239,68,68,0.3); }
+    50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0.1), 0 0 24px rgba(239,68,68,0.5); }
+  }
+  .interim-text {
+    font-size:0.78rem;
+    color:rgba(255,255,255,0.45);
+    font-style:italic;
+    margin-top:3px;
+    min-height:1.2em;
+    display:block;
+  }
+
+  /* ── Generation section ── */
+  .gen-section {
+    background: rgba(255,255,255,0.03);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 1.25rem 1.5rem;
+  }
+  .gen-section h3 { font-size:0.95rem; color:rgba(255,255,255,0.7); margin-bottom:1rem; }
+  .gen-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:1rem; }
+  .gen-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px; }
+  .gen-group label { font-size:0.75rem; color:rgba(255,255,255,0.5); }
+  .gen-select {
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.12);
+    color:#fff;
+    border-radius:8px;
+    padding:6px 10px;
+    font-size:0.85rem;
+    outline:none;
+    cursor:pointer;
+  }
+  .gen-select option { background:#1a1a2e; }
+  .desc-wrap { position:relative; display:flex; flex-direction:column; margin-bottom:1rem; }
+  .ai-desc-input {
+    background:rgba(255,255,255,0.05);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;
+    color:#fff;
+    padding:10px 44px 10px 12px;
+    font-size:0.88rem;
+    resize:vertical;
+    outline:none;
+    width:100%;
+    box-sizing:border-box;
+  }
+  .ai-desc-input:focus { border-color:rgba(124,58,237,0.5); }
+  .voice-btn {
+    position:absolute;right:10px;top:10px;
+    background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.12);
+    color:#fff;
+    border-radius:8px;
+    width:32px;height:32px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;font-size:1rem;
+  }
+  .btn-generate {
+    width:100%;
+    background:linear-gradient(135deg,#7C3AED,#06B6D4);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:12px;
+    font-size:0.95rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:opacity 0.2s;
+    margin-bottom:1rem;
+  }
+  .btn-generate:hover { opacity:0.85; }
+  .btn-generate:disabled { opacity:0.5; cursor:not-allowed; }
+
+  /* ── AI result area ── */
+  .ai-result-area { margin-top:0.5rem; }
+  .ai-loading {
+    display:none;flex-direction:column;align-items:center;gap:0.75rem;
+    padding:2rem;color:rgba(255,255,255,0.5);font-size:0.85rem;
+  }
+  .ai-spinner {
+    width:36px;height:36px;
+    border:3px solid rgba(124,58,237,0.3);
+    border-top-color:#7C3AED;
+    border-radius:50%;
+    animation:spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .ai-images-grid {
+    display:grid;gap:0.75rem;
+    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  }
+  .ai-img-wrap {
+    position:relative;border-radius:10px;overflow:hidden;
+    border:1px solid rgba(255,255,255,0.08);
+    aspect-ratio:1;
+  }
+  .ai-img-wrap img { width:100%;height:100%;object-fit:cover; }
+  .ai-img-save {
+    position:absolute;bottom:6px;right:6px;
+    background:rgba(0,0,0,0.6);
+    border:none;color:#fff;border-radius:6px;
+    padding:4px 8px;font-size:0.72rem;cursor:pointer;
+  }
+  .ai-placeholder {
+    text-align:center;padding:2.5rem 1rem;
+    color:rgba(255,255,255,0.25);font-size:0.88rem;
+  }
+  .ai-placeholder-icon { font-size:2.5rem;display:block;margin-bottom:0.5rem; }
+  .ai-error {
+    background:rgba(239,68,68,0.1);
+    border:1px solid rgba(239,68,68,0.3);
+    border-radius:8px;
+    padding:0.75rem 1rem;
+    color:#ef4444;
+    font-size:0.83rem;
+    margin-top:0.5rem;
+    display:none;
+  }
+
+  /* ── Done Drawing button ── */
+  .done-drawing-wrap {
+    text-align:center;
+    padding:0.75rem;
+    border-top:1px solid rgba(255,255,255,0.06);
+  }
+  .btn-done {
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(255,255,255,0.15);
+    color:#fff;
+    border-radius:10px;
+    padding:8px 22px;
+    font-size:0.88rem;
+    cursor:pointer;
+    transition:all 0.2s;
+  }
+  .btn-done:hover { background:rgba(124,58,237,0.2); border-color:rgba(124,58,237,0.5); }
+
+  /* ── Gesture indicator ── */
+  #gesture-indicator {
+    position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.65);
+    border-radius:20px;
+    padding:4px 14px;
+    font-size:0.8rem;
+    color:#fff;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity 0.3s;
+    white-space:nowrap;
+  }
+  #gesture-indicator.visible { opacity:1; }
+</style>
+</head>
+<body class="canvas-body">
+
+<!-- PARTICLES BACKGROUND -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="canvas-nav">
+  <a href="index.html" class="nav-logo">
+    <div class="logo-icon">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="15" stroke="url(#cnlg1)" stroke-width="1.5"/>
+        <path d="M8 22 Q12 10 16 14 Q20 18 24 8" stroke="url(#cnlg2)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="8" r="2.5" fill="url(#cnlg2)"/>
+        <defs>
+          <linearGradient id="cnlg1" x1="0" y1="0" x2="32" y2="32">
+            <stop offset="0%" stop-color="#7C3AED"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+          <linearGradient id="cnlg2" x1="8" y1="22" x2="24" y2="8">
+            <stop offset="0%" stop-color="#7C3AED"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <span class="logo-text">AirBrush</span>
+  </a>
+  <div class="nav-center">
+    <div class="status-pill">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Click Start to begin</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user">👤 Guest</span>
+    <button class="btn-nav-ghost" id="btn-logout">Sign Out</button>
   </div>
 </nav>
 
-<div class="app-layout">
+<!-- 3-COLUMN LAYOUT -->
+<div class="canvas-layout">
 
-  <!-- LEFT SIDEBAR -->
-  <aside class="sidebar">
-
-    <!-- 1. Input Mode -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">Input Mode</div>
-      <div class="toggle-group">
-        <button class="toggle-btn active" id="mode-air">✋ Air Draw</button>
-        <button class="toggle-btn" id="mode-mouse">🖱️ Mouse</button>
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+    <div class="panel-section">
+      <div class="panel-label">MODE</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-air-mode">✋ Air Draw</button>
+        <button class="mode-btn" id="btn-mouse-mode">🖱 Mouse</button>
       </div>
     </div>
-
-    <!-- 2. Tools -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">Tools</div>
-      <button class="tool-btn active" id="tool-brush">🖌️ Brush</button>
-      <button class="tool-btn" id="tool-eraser">🧹 Eraser</button>
-    </div>
-
-    <!-- 3. Brush Size -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">Brush Size: <span id="brush-size-label">5</span>px</div>
-      <input type="range" id="brush-size" min="2" max="40" value="5"/>
-    </div>
-
-    <!-- 4. Colour Palette -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">Colour</div>
-      <input type="color" id="colour-picker" value="#7C3AED" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;"/>
-      <div class="colour-palette" id="preset-colours">
-        <!-- presets injected by JS -->
+    <div class="panel-section">
+      <div class="panel-label">TOOL</div>
+      <div class="tool-row">
+        <button class="tool-btn active" id="btn-brush">🖌 Brush</button>
+        <button class="tool-btn" id="btn-eraser">⬜ Eraser</button>
       </div>
     </div>
-
-    <!-- 5. Start / Stop -->
-    <div class="sidebar-section">
-      <button class="start-stop-btn start" id="start-stop-btn">▶ Start</button>
+    <div class="panel-section">
+      <div class="panel-label">COLORS</div>
+      <div class="swatch-grid">
+        <div class="swatch active" data-color="#7C3AED" style="background:#7C3AED"></div>
+        <div class="swatch" data-color="#06B6D4" style="background:#06B6D4"></div>
+        <div class="swatch" data-color="#EC4899" style="background:#EC4899"></div>
+        <div class="swatch" data-color="#F59E0B" style="background:#F59E0B"></div>
+        <div class="swatch" data-color="#10B981" style="background:#10B981"></div>
+        <div class="swatch" data-color="#EF4444" style="background:#EF4444"></div>
+        <div class="swatch" data-color="#3B82F6" style="background:#3B82F6"></div>
+        <div class="swatch" data-color="#F97316" style="background:#F97316"></div>
+        <div class="swatch" data-color="#ffffff" style="background:#fff;border:1px solid rgba(255,255,255,0.25)"></div>
+        <div class="swatch" data-color="#000000" style="background:#000"></div>
+      </div>
+      <input type="color" id="color-custom" value="#7C3AED" class="color-picker" title="Custom colour"/>
     </div>
-
-    <!-- 6. Gesture Legend -->
-    <div class="sidebar-section">
-      <div class="sidebar-label">Gesture Legend</div>
-      <div class="gesture-legend">
-        <table>
-          <tr><td>☝️</td><td>Index finger — Draw</td></tr>
-          <tr><td>✌️</td><td>Index + Middle — Erase</td></tr>
-          <tr><td>🖐️</td><td>Open palm — Pause</td></tr>
-          <tr><td>✊</td><td>Fist + shake — Clear</td></tr>
-        </table>
+    <div class="panel-section">
+      <div class="panel-label">BRUSH SIZE — <span id="size-label">4</span></div>
+      <input type="range" id="brush-size" min="1" max="60" value="4" class="slider"/>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">OPACITY — <span id="opacity-label">100</span>%</div>
+      <input type="range" id="brush-opacity" min="10" max="100" value="100" class="slider"/>
+    </div>
+    <div class="panel-section">
+      <div class="panel-label">ACTIONS</div>
+      <div class="action-stack">
+        <button class="action-btn green" id="btn-start">▶ Start</button>
+        <button class="action-btn red" id="btn-stop" disabled>■ Stop</button>
+        <button class="action-btn" id="btn-undo">↩ Undo</button>
+        <button class="action-btn" id="btn-clear">🗑 Clear</button>
+        <button class="action-btn" id="btn-download">⬇ Save</button>
       </div>
     </div>
-
-    <!-- 7. Undo / Clear -->
-    <div class="sidebar-section">
-      <div class="action-row">
-        <button id="undo-btn">↩ Undo</button>
-        <button id="clear-btn">🗑 Clear</button>
+    <div class="panel-section" id="gesture-guide">
+      <div class="panel-label">GESTURES</div>
+      <div class="gesture-list">
+        <div class="gesture-item"><span>☝️</span><span>Index — Draw</span></div>
+        <div class="gesture-item"><span>✌️</span><span>Index+Mid — Erase</span></div>
+        <div class="gesture-item"><span>🖐</span><span>Palm — Pause</span></div>
+        <div class="gesture-item"><span>✊</span><span>Fist+Shake — Clear</span></div>
       </div>
     </div>
-
   </aside>
 
-  <!-- MAIN AREA -->
-  <main class="app-main">
+  <!-- CENTRE: WEBCAM -->
+  <div class="cam-panel" id="cam-panel">
+    <div class="cam-panel-label">📷 Live Hand Tracking</div>
+    <div class="cam-frame-box">
+      <video id="webcam" autoplay muted playsinline></video>
+      <canvas id="overlay-canvas"></canvas>
+      <div class="gesture-indicator" id="gesture-indicator"></div>
+    </div>
+  </div>
 
-    <!-- Drawing Area -->
-    <div class="drawing-area">
-      <div class="webcam-window">
-        <div class="window-label">Live Camera</div>
-        <video id="webcam-feed" autoplay muted playsinline></video>
-        <canvas id="webcam-overlay"></canvas>
-      </div>
-      <div class="canvas-window">
-        <div class="window-label">Your Canvas</div>
-        <canvas id="drawing-canvas"></canvas>
+  <!-- RIGHT: DRAW CANVAS -->
+  <div class="right-panel">
+    <div class="draw-section">
+      <div class="draw-label">🎨 Your Canvas</div>
+      <div class="draw-frame-box">
+        <canvas id="draw-canvas"></canvas>
       </div>
     </div>
-
-    <button class="done-drawing-btn" id="done-drawing-btn">Done Drawing ↓</button>
-
-    <!-- GENERATION SECTION -->
-    <div class="generation-section" id="generation-section">
-
-      <!-- Controls -->
-      <div class="gen-controls">
-        <h3>🎨 Generation Controls</h3>
-
-        <div>
-          <div class="sidebar-label">Style</div>
-          <div class="style-grid">
-            <button class="style-btn active" data-style="Realistic">Realistic</button>
-            <button class="style-btn" data-style="Creative">Creative</button>
-            <button class="style-btn" data-style="Dynamic">Dynamic</button>
-            <button class="style-btn" data-style="Portrait">Portrait</button>
-            <button class="style-btn" data-style="Stock Photo">Stock Photo</button>
-            <button class="style-btn" data-style="Watercolour">Watercolour</button>
-            <button class="style-btn" data-style="Black & White">Black & White</button>
-            <button class="style-btn" data-style="Vibrant">Vibrant</button>
-          </div>
-        </div>
-
-        <div>
-          <div class="sidebar-label">Number of Images</div>
-          <div class="gen-count-btns">
-            <button class="gen-count-btn active" data-count="1">1</button>
-            <button class="gen-count-btn" data-count="2">2</button>
-            <button class="gen-count-btn" data-count="3">3</button>
-          </div>
-        </div>
-
-        <div>
-          <div class="sidebar-label">Description (optional)</div>
-          <div class="desc-row">
-            <textarea id="gen-description" placeholder="e.g. pink flower on blue background..."></textarea>
-            <button class="mic-btn" id="mic-btn" title="Voice input">🎙️</button>
-          </div>
-        </div>
-
-        <button class="generate-btn" id="generate-btn">✨ Generate</button>
-        <div id="gen-status" style="color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>
-      </div>
-
-      <!-- Results -->
-      <div class="gen-results">
-        <h3>Generated Images</h3>
-        <div class="gen-images-grid count-1" id="gen-images-grid">
-          <div class="gen-img-wrap" id="gen-placeholder">Generated images will appear here</div>
-        </div>
-      </div>
-
+    <div class="done-drawing-wrap">
+      <button class="btn-done" id="btn-done-drawing">Done Drawing ↓</button>
     </div>
-  </main>
+  </div>
+
+</div><!-- /canvas-layout -->
+
+<!-- ═══ GENERATION SECTION (shown after Done Drawing) ═══ -->
+<div class="gen-section" id="gen-section" style="display:none;">
+  <h3>🎨 Generation Controls</h3>
+
+  <div class="gen-row">
+    <div class="gen-group">
+      <label>Style</label>
+      <select id="gen-style" class="gen-select">
+        <option value="realistic">Realistic</option>
+        <option value="creative">Creative</option>
+        <option value="dynamic">Dynamic</option>
+        <option value="portrait">Portrait</option>
+        <option value="stock">Stock Photo</option>
+        <option value="watercolour">Watercolour</option>
+        <option value="bw">Black &amp; White</option>
+        <option value="vibrant">Vibrant</option>
+      </select>
+    </div>
+    <div class="gen-group">
+      <label>Number of Images</label>
+      <select id="gen-count" class="gen-select">
+        <option value="1">1</option>
+        <option value="2">2</option>
+        <option value="3">3</option>
+      </select>
+    </div>
+    <div class="gen-group" style="min-width:160px;">
+      <label>HF Token <small style="opacity:0.6;">(needed for generation)</small></label>
+      <div style="display:flex;gap:6px;">
+        <input type="password" id="hf-token" placeholder="hf_…"
+               style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+                      color:#fff;border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;"/>
+        <button id="btn-save-token"
+                style="background:rgba(124,58,237,0.3);border:1px solid rgba(124,58,237,0.4);
+                       color:#fff;border-radius:8px;padding:6px 10px;font-size:0.78rem;cursor:pointer;">
+          Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="desc-wrap">
+    <textarea id="ai-description" class="ai-desc-input" rows="2"
+              placeholder="Describe your drawing (optional — e.g. 'pink flower with blue background')…"></textarea>
+    <button class="voice-btn" id="btn-voice" title="Voice input">🎤</button>
+    <span class="interim-text" id="interim-text"></span>
+  </div>
+
+  <button class="btn-generate" id="btn-generate">✨ Generate AI Art</button>
+  <div class="ai-error" id="ai-error"></div>
+
+  <div class="ai-result-area">
+    <div class="ai-placeholder" id="ai-placeholder">
+      <span class="ai-placeholder-icon">🎨</span>
+      <span>AI art will appear here</span>
+    </div>
+    <div class="ai-loading" id="ai-loading">
+      <div class="ai-spinner"></div>
+      <span id="ai-loading-text">Generating…</span>
+    </div>
+    <div class="ai-images-grid" id="ai-images-grid"></div>
+  </div>
 </div>
 
-<!-- MediaPipe -->
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<!-- GALLERY MODAL -->
+<div class="gallery-modal" id="gallery-modal" style="display:none;">
+  <div class="gallery-modal-inner">
+    <div class="gallery-modal-header">
+      <h2>🖼 My Gallery</h2>
+      <button class="gallery-close" id="gallery-close">✕</button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid">
+      <div class="gallery-empty" id="gallery-empty">No images yet — generate some AI art!</div>
+    </div>
+  </div>
+</div>
+
 <script src="js/canvas.js"></script>
 </body>
 </html>
