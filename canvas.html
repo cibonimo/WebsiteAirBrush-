@@ -4,8 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Canvas — AirBrush</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css"/>
 <link rel="stylesheet" href="css/canvas.css"/>
 <!-- MediaPipe -->
@@ -14,10 +13,8 @@
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 <style>
-  /* ── Calibri Light globally ── */
-  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
+  * { font-family: 'Caveat', cursive !important; }
 
-  /* ── Particles background ── */
   #particles-canvas {
     position:fixed;top:0;left:0;width:100%;height:100%;
     pointer-events:none;z-index:0;
@@ -26,191 +23,183 @@
   .canvas-nav, .canvas-layout, .left-panel, .cam-panel, .right-panel,
   .draw-section, .ai-section, .gen-section { position:relative; z-index:1; }
 
-  /* ── Mirrored webcam ── */
+  /* ── Selfie-style webcam (mirrored via CSS) ── */
   #webcam { transform: scaleX(-1); }
 
-  /* ── Overlay canvas mirrors the video ── */
-  #overlay-canvas { transform: scaleX(-1); }
+  /* ── Overlay canvas: also CSS-mirrored so raw landmark coords land correctly ── */
+  #overlay-canvas { transform: scaleX(-1); pointer-events:none; }
 
-  /* ── Smaller Start / Stop buttons ── */
-  #btn-start, #btn-stop {
+  /* ── Cam-trace canvas: accumulates strokes on cam feed ── */
+  #cam-trace-canvas {
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;
+    transform:scaleX(-1);
+    z-index:1;
+  }
+  /* Overlay canvas is above cam-trace */
+  #overlay-canvas { z-index:2; }
+
+  /* ── Smaller side panel buttons ── */
+  .action-btn {
     padding: 5px 10px !important;
-    font-size: 0.78rem !important;
+    font-size: 0.95rem !important;
     min-height: unset !important;
   }
-
-  /* ── Smaller colour swatch display ── */
-  .swatch {
-    width: 20px !important;
-    height: 20px !important;
-    border-radius: 50% !important;
+  .mode-btn, .tool-btn {
+    padding: 5px 8px !important;
+    font-size: 0.9rem !important;
   }
-  .color-picker {
-    width: 28px !important;
-    height: 28px !important;
-    padding: 0 !important;
-  }
+  .panel-label { font-size: 0.85rem !important; }
+  .swatch { width:18px !important; height:18px !important; border-radius:50% !important; }
+  .color-picker { width:26px !important; height:26px !important; padding:0 !important; }
 
-  /* ── Mic button states ── */
-  .voice-btn { transition: all 0.2s; }
+  /* ── Mic button ── */
+  .voice-btn { transition:all 0.2s; }
   .voice-btn.listening {
-    background: rgba(239,68,68,0.25) !important;
-    border-color: #ef4444 !important;
-    box-shadow: 0 0 0 4px rgba(239,68,68,0.2), 0 0 16px rgba(239,68,68,0.3);
-    animation: micPulse 1s infinite;
+    background:rgba(239,68,68,0.25)!important;border-color:#ef4444!important;
+    animation:micPulse 1s infinite;
   }
   @keyframes micPulse {
-    0%,100% { box-shadow: 0 0 0 4px rgba(239,68,68,0.2), 0 0 16px rgba(239,68,68,0.3); }
-    50%      { box-shadow: 0 0 0 8px rgba(239,68,68,0.1), 0 0 24px rgba(239,68,68,0.5); }
+    0%,100%{ box-shadow:0 0 0 4px rgba(239,68,68,0.2),0 0 16px rgba(239,68,68,0.3); }
+    50%    { box-shadow:0 0 0 8px rgba(239,68,68,0.1),0 0 24px rgba(239,68,68,0.5); }
   }
-  .interim-text {
-    font-size:0.78rem;
-    color:rgba(255,255,255,0.45);
-    font-style:italic;
-    margin-top:3px;
-    min-height:1.2em;
-    display:block;
-  }
+  .interim-text { font-size:0.9rem;color:rgba(255,255,255,0.45);font-style:italic;margin-top:3px;min-height:1.2em;display:block; }
 
   /* ── Generation section ── */
   .gen-section {
-    background: rgba(255,255,255,0.03);
-    border-top: 1px solid rgba(255,255,255,0.06);
-    padding: 1.25rem 1.5rem;
+    background:rgba(255,255,255,0.03);
+    border-top:1px solid rgba(255,255,255,0.06);
+    padding:1.25rem 1.5rem;
   }
-  .gen-section h3 { font-size:0.95rem; color:rgba(255,255,255,0.7); margin-bottom:1rem; }
-  .gen-row { display:flex; gap:1rem; flex-wrap:wrap; align-items:flex-end; margin-bottom:1rem; }
-  .gen-group { display:flex; flex-direction:column; gap:4px; flex:1; min-width:120px; }
-  .gen-group label { font-size:0.75rem; color:rgba(255,255,255,0.5); }
-  .gen-select {
-    background:rgba(255,255,255,0.06);
-    border:1px solid rgba(255,255,255,0.12);
-    color:#fff;
-    border-radius:8px;
-    padding:6px 10px;
-    font-size:0.85rem;
-    outline:none;
-    cursor:pointer;
-  }
-  .gen-select option { background:#1a1a2e; }
-  .desc-wrap { position:relative; display:flex; flex-direction:column; margin-bottom:1rem; }
+  .gen-section h3 { font-size:1.1rem;color:rgba(255,255,255,0.7);margin-bottom:1rem; }
+  .desc-wrap { position:relative;display:flex;flex-direction:column;margin-bottom:1rem; }
   .ai-desc-input {
-    background:rgba(255,255,255,0.05);
-    border:1px solid rgba(255,255,255,0.12);
-    border-radius:10px;
-    color:#fff;
-    padding:10px 44px 10px 12px;
-    font-size:0.88rem;
-    resize:vertical;
-    outline:none;
-    width:100%;
-    box-sizing:border-box;
+    background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;color:#fff;padding:10px 44px 10px 12px;
+    font-size:1rem;resize:vertical;outline:none;width:100%;box-sizing:border-box;
   }
   .ai-desc-input:focus { border-color:rgba(124,58,237,0.5); }
   .voice-btn {
-    position:absolute;right:10px;top:10px;
-    background:rgba(255,255,255,0.06);
-    border:1px solid rgba(255,255,255,0.12);
-    color:#fff;
-    border-radius:8px;
-    width:32px;height:32px;
-    display:flex;align-items:center;justify-content:center;
+    position:absolute;right:10px;top:10px;background:rgba(255,255,255,0.06);
+    border:1px solid rgba(255,255,255,0.12);color:#fff;border-radius:8px;
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;
     cursor:pointer;font-size:1rem;
   }
+
+  /* HF token row */
+  .hf-row { display:flex;gap:6px;margin-bottom:1rem;align-items:center; }
+  .hf-row label { font-size:0.9rem;color:rgba(255,255,255,0.5);white-space:nowrap; }
+  .hf-input {
+    flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
+    color:#fff;border-radius:8px;padding:6px 10px;font-size:0.95rem;outline:none;
+  }
+  .hf-save {
+    background:rgba(124,58,237,0.3);border:1px solid rgba(124,58,237,0.4);
+    color:#fff;border-radius:8px;padding:6px 10px;font-size:0.9rem;cursor:pointer;
+    white-space:nowrap;
+  }
+
   .btn-generate {
-    width:100%;
-    background:linear-gradient(135deg,#7C3AED,#06B6D4);
-    color:#fff;
-    border:none;
-    border-radius:10px;
-    padding:12px;
-    font-size:0.95rem;
-    font-weight:600;
-    cursor:pointer;
-    transition:opacity 0.2s;
-    margin-bottom:1rem;
+    width:100%;background:linear-gradient(135deg,#7C3AED,#06B6D4);color:#fff;
+    border:none;border-radius:10px;padding:12px;font-size:1.1rem;font-weight:600;
+    cursor:pointer;transition:opacity 0.2s;margin-bottom:1rem;
   }
   .btn-generate:hover { opacity:0.85; }
-  .btn-generate:disabled { opacity:0.5; cursor:not-allowed; }
+  .btn-generate:disabled { opacity:0.5;cursor:not-allowed; }
 
-  /* ── AI result area ── */
+  /* ── AI result ── */
   .ai-result-area { margin-top:0.5rem; }
-  .ai-loading {
-    display:none;flex-direction:column;align-items:center;gap:0.75rem;
-    padding:2rem;color:rgba(255,255,255,0.5);font-size:0.85rem;
-  }
-  .ai-spinner {
-    width:36px;height:36px;
-    border:3px solid rgba(124,58,237,0.3);
-    border-top-color:#7C3AED;
-    border-radius:50%;
-    animation:spin 0.8s linear infinite;
-  }
+  .ai-loading { display:none;flex-direction:column;align-items:center;gap:0.75rem;padding:2rem;color:rgba(255,255,255,0.5);font-size:1rem; }
+  .ai-spinner { width:36px;height:36px;border:3px solid rgba(124,58,237,0.3);border-top-color:#7C3AED;border-radius:50%;animation:spin 0.8s linear infinite; }
   @keyframes spin { to { transform:rotate(360deg); } }
-  .ai-images-grid {
-    display:grid;gap:0.75rem;
-    grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
-  }
-  .ai-img-wrap {
-    position:relative;border-radius:10px;overflow:hidden;
-    border:1px solid rgba(255,255,255,0.08);
-    aspect-ratio:1;
-  }
+  .ai-img-wrap { position:relative;border-radius:10px;overflow:hidden;border:1px solid rgba(255,255,255,0.08);aspect-ratio:1;max-width:420px;margin:0 auto; }
   .ai-img-wrap img { width:100%;height:100%;object-fit:cover; }
-  .ai-img-save {
-    position:absolute;bottom:6px;right:6px;
-    background:rgba(0,0,0,0.6);
-    border:none;color:#fff;border-radius:6px;
-    padding:4px 8px;font-size:0.72rem;cursor:pointer;
-  }
-  .ai-placeholder {
-    text-align:center;padding:2.5rem 1rem;
-    color:rgba(255,255,255,0.25);font-size:0.88rem;
-  }
+  .ai-placeholder { text-align:center;padding:2.5rem 1rem;color:rgba(255,255,255,0.25);font-size:1rem; }
   .ai-placeholder-icon { font-size:2.5rem;display:block;margin-bottom:0.5rem; }
-  .ai-error {
-    background:rgba(239,68,68,0.1);
-    border:1px solid rgba(239,68,68,0.3);
-    border-radius:8px;
-    padding:0.75rem 1rem;
-    color:#ef4444;
-    font-size:0.83rem;
-    margin-top:0.5rem;
-    display:none;
+  .ai-error { background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:0.75rem 1rem;color:#ef4444;font-size:0.95rem;margin-top:0.5rem;display:none; }
+
+  /* Stick it button */
+  .btn-stick {
+    width:100%;margin-top:0.75rem;
+    background:linear-gradient(135deg,#10B981,#06B6D4);color:#fff;
+    border:none;border-radius:10px;padding:12px;font-size:1.1rem;font-weight:600;
+    cursor:pointer;transition:opacity 0.2s;display:none;
   }
+  .btn-stick:hover { opacity:0.85; }
 
   /* ── Done Drawing button ── */
-  .done-drawing-wrap {
-    text-align:center;
-    padding:0.75rem;
-    border-top:1px solid rgba(255,255,255,0.06);
-  }
+  .done-drawing-wrap { text-align:center;padding:0.75rem;border-top:1px solid rgba(255,255,255,0.06); }
   .btn-done {
-    background:rgba(255,255,255,0.07);
-    border:1px solid rgba(255,255,255,0.15);
-    color:#fff;
-    border-radius:10px;
-    padding:8px 22px;
-    font-size:0.88rem;
-    cursor:pointer;
-    transition:all 0.2s;
+    background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);
+    color:#fff;border-radius:10px;padding:8px 22px;font-size:1rem;cursor:pointer;transition:all 0.2s;
   }
-  .btn-done:hover { background:rgba(124,58,237,0.2); border-color:rgba(124,58,237,0.5); }
+  .btn-done:hover { background:rgba(124,58,237,0.2);border-color:rgba(124,58,237,0.5); }
 
   /* ── Gesture indicator ── */
   #gesture-indicator {
     position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
-    background:rgba(0,0,0,0.65);
-    border-radius:20px;
-    padding:4px 14px;
-    font-size:0.8rem;
-    color:#fff;
-    pointer-events:none;
-    opacity:0;
-    transition:opacity 0.3s;
-    white-space:nowrap;
+    background:rgba(0,0,0,0.65);border-radius:20px;padding:4px 14px;
+    font-size:0.95rem;color:#fff;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap;
   }
   #gesture-indicator.visible { opacity:1; }
+
+  /* ── Gallery Modal ── */
+  .gallery-modal {
+    position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;
+    display:flex;align-items:center;justify-content:center;padding:1rem;
+  }
+  .gallery-modal-inner {
+    background:#111118;border-radius:16px;border:1px solid rgba(255,255,255,0.1);
+    width:100%;max-width:900px;max-height:90vh;overflow-y:auto;
+    display:flex;flex-direction:column;
+  }
+  .gallery-modal-header {
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.08);
+    flex-shrink:0;
+  }
+  .gallery-modal-header h2 { font-size:1.3rem;color:#fff; }
+  .gallery-close {
+    background:rgba(255,255,255,0.08);border:none;color:#fff;
+    border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1rem;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .gallery-grid {
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:0.75rem;padding:1rem 1.5rem;
+  }
+  .gallery-item {
+    border-radius:10px;overflow:hidden;cursor:pointer;
+    border:1px solid rgba(255,255,255,0.08);aspect-ratio:1;
+    transition:transform 0.2s,border-color 0.2s;position:relative;
+  }
+  .gallery-item:hover { transform:scale(1.03);border-color:rgba(124,58,237,0.5); }
+  .gallery-item img { width:100%;height:100%;object-fit:cover; }
+  .gallery-empty { grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:3rem;font-size:1rem; }
+
+  /* ── Gallery Detail Modal ── */
+  .gallery-detail-modal {
+    position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1100;
+    display:flex;align-items:center;justify-content:center;padding:1rem;
+  }
+  .gallery-detail-inner {
+    background:#111118;border-radius:16px;border:1px solid rgba(255,255,255,0.1);
+    width:100%;max-width:960px;max-height:90vh;overflow-y:auto;padding:1.5rem;
+  }
+  .gallery-detail-header {
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;
+  }
+  .gallery-detail-header h2 { font-size:1.3rem;color:#fff; }
+  .gallery-detail-grid { display:grid;grid-template-columns:1fr 1fr;gap:1rem; }
+  .gallery-detail-grid img { width:100%;border-radius:10px;border:1px solid rgba(255,255,255,0.1); }
+  .gallery-detail-label { color:rgba(255,255,255,0.5);font-size:0.9rem;margin-bottom:0.4rem; }
+  .gallery-detail-desc {
+    margin-top:1rem;background:rgba(255,255,255,0.04);
+    border-radius:10px;padding:0.75rem;color:rgba(255,255,255,0.7);font-size:1rem;
+  }
+  @media(max-width:600px) {
+    .gallery-detail-grid { grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body class="canvas-body">
@@ -228,12 +217,10 @@
         <circle cx="24" cy="8" r="2.5" fill="url(#cnlg2)"/>
         <defs>
           <linearGradient id="cnlg1" x1="0" y1="0" x2="32" y2="32">
-            <stop offset="0%" stop-color="#7C3AED"/>
-            <stop offset="100%" stop-color="#06B6D4"/>
+            <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/>
           </linearGradient>
           <linearGradient id="cnlg2" x1="8" y1="22" x2="24" y2="8">
-            <stop offset="0%" stop-color="#7C3AED"/>
-            <stop offset="100%" stop-color="#06B6D4"/>
+            <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/>
           </linearGradient>
         </defs>
       </svg>
@@ -248,6 +235,7 @@
   </div>
   <div class="nav-right">
     <span class="nav-user" id="nav-user">👤 Guest</span>
+    <button class="btn-nav-ghost" id="btn-open-gallery">🖼 Gallery</button>
     <button class="btn-nav-ghost" id="btn-logout">Sign Out</button>
   </div>
 </nav>
@@ -260,7 +248,7 @@
     <div class="panel-section">
       <div class="panel-label">MODE</div>
       <div class="mode-toggle">
-        <button class="mode-btn active" id="btn-air-mode">✋ Air Draw</button>
+        <button class="mode-btn active" id="btn-air-mode">✋ Air</button>
         <button class="mode-btn" id="btn-mouse-mode">🖱 Mouse</button>
       </div>
     </div>
@@ -302,7 +290,6 @@
         <button class="action-btn red" id="btn-stop" disabled>■ Stop</button>
         <button class="action-btn" id="btn-undo">↩ Undo</button>
         <button class="action-btn" id="btn-clear">🗑 Clear</button>
-        <button class="action-btn" id="btn-download">⬇ Save</button>
       </div>
     </div>
     <div class="panel-section" id="gesture-guide">
@@ -311,7 +298,6 @@
         <div class="gesture-item"><span>☝️</span><span>Index — Draw</span></div>
         <div class="gesture-item"><span>✌️</span><span>Index+Mid — Erase</span></div>
         <div class="gesture-item"><span>🖐</span><span>Palm — Pause</span></div>
-        <div class="gesture-item"><span>✊</span><span>Fist+Shake — Clear</span></div>
       </div>
     </div>
   </aside>
@@ -319,8 +305,11 @@
   <!-- CENTRE: WEBCAM -->
   <div class="cam-panel" id="cam-panel">
     <div class="cam-panel-label">📷 Live Hand Tracking</div>
-    <div class="cam-frame-box">
+    <div class="cam-frame-box" style="position:relative;">
       <video id="webcam" autoplay muted playsinline></video>
+      <!-- cam-trace: accumulated drawing strokes on cam feed -->
+      <canvas id="cam-trace-canvas"></canvas>
+      <!-- overlay: skeleton (cleared every frame) -->
       <canvas id="overlay-canvas"></canvas>
       <div class="gesture-indicator" id="gesture-indicator"></div>
     </div>
@@ -343,48 +332,17 @@
 
 <!-- ═══ GENERATION SECTION (shown after Done Drawing) ═══ -->
 <div class="gen-section" id="gen-section" style="display:none;">
-  <h3>🎨 Generation Controls</h3>
+  <h3>🎨 Generate AI Art from your sketch</h3>
 
-  <div class="gen-row">
-    <div class="gen-group">
-      <label>Style</label>
-      <select id="gen-style" class="gen-select">
-        <option value="realistic">Realistic</option>
-        <option value="creative">Creative</option>
-        <option value="dynamic">Dynamic</option>
-        <option value="portrait">Portrait</option>
-        <option value="stock">Stock Photo</option>
-        <option value="watercolour">Watercolour</option>
-        <option value="bw">Black &amp; White</option>
-        <option value="vibrant">Vibrant</option>
-      </select>
-    </div>
-    <div class="gen-group">
-      <label>Number of Images</label>
-      <select id="gen-count" class="gen-select">
-        <option value="1">1</option>
-        <option value="2">2</option>
-        <option value="3">3</option>
-      </select>
-    </div>
-    <div class="gen-group" style="min-width:160px;">
-      <label>HF Token <small style="opacity:0.6;">(needed for generation)</small></label>
-      <div style="display:flex;gap:6px;">
-        <input type="password" id="hf-token" placeholder="hf_…"
-               style="flex:1;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);
-                      color:#fff;border-radius:8px;padding:6px 10px;font-size:0.82rem;outline:none;"/>
-        <button id="btn-save-token"
-                style="background:rgba(124,58,237,0.3);border:1px solid rgba(124,58,237,0.4);
-                       color:#fff;border-radius:8px;padding:6px 10px;font-size:0.78rem;cursor:pointer;">
-          Save
-        </button>
-      </div>
-    </div>
+  <div class="hf-row">
+    <label>HF Token:</label>
+    <input type="password" id="hf-token" class="hf-input" placeholder="hf_… (free at huggingface.co/settings/tokens)"/>
+    <button id="btn-save-token" class="hf-save">Save</button>
   </div>
 
   <div class="desc-wrap">
     <textarea id="ai-description" class="ai-desc-input" rows="2"
-              placeholder="Describe your drawing (optional — e.g. 'pink flower with blue background')…"></textarea>
+      placeholder="Extra description (optional) — e.g. 'blue sky background, sunset colours'. Your sketch is the main input."></textarea>
     <button class="voice-btn" id="btn-voice" title="Voice input">🎤</button>
     <span class="interim-text" id="interim-text"></span>
   </div>
@@ -395,13 +353,18 @@
   <div class="ai-result-area">
     <div class="ai-placeholder" id="ai-placeholder">
       <span class="ai-placeholder-icon">🎨</span>
-      <span>AI art will appear here</span>
+      <span>Your AI art will appear here</span>
     </div>
     <div class="ai-loading" id="ai-loading">
       <div class="ai-spinner"></div>
-      <span id="ai-loading-text">Generating…</span>
+      <span id="ai-loading-text">Generating… this may take 1–2 minutes</span>
     </div>
-    <div class="ai-images-grid" id="ai-images-grid"></div>
+    <div id="ai-result-wrap">
+      <div class="ai-img-wrap" id="ai-img-wrap" style="display:none;">
+        <img id="ai-result-img" src="" alt="AI Generated"/>
+      </div>
+      <button class="btn-stick" id="btn-stick-it">📌 Stick it on your Art Wall</button>
+    </div>
   </div>
 </div>
 
@@ -409,12 +372,33 @@
 <div class="gallery-modal" id="gallery-modal" style="display:none;">
   <div class="gallery-modal-inner">
     <div class="gallery-modal-header">
-      <h2>🖼 My Gallery</h2>
+      <h2>🖼 My Art Wall</h2>
       <button class="gallery-close" id="gallery-close">✕</button>
     </div>
     <div class="gallery-grid" id="gallery-grid">
-      <div class="gallery-empty" id="gallery-empty">No images yet — generate some AI art!</div>
+      <div class="gallery-empty" id="gallery-empty">No images yet — generate some AI art and stick it here!</div>
     </div>
+  </div>
+</div>
+
+<!-- GALLERY DETAIL MODAL -->
+<div class="gallery-detail-modal" id="gallery-detail-modal" style="display:none;">
+  <div class="gallery-detail-inner">
+    <div class="gallery-detail-header">
+      <h2>🎨 Artwork Detail</h2>
+      <button class="gallery-close" id="gallery-detail-close">✕</button>
+    </div>
+    <div class="gallery-detail-grid">
+      <div>
+        <div class="gallery-detail-label">AI Generated Image</div>
+        <img id="detail-ai-img" src="" alt="AI Art"/>
+      </div>
+      <div>
+        <div class="gallery-detail-label">Your Sketch</div>
+        <img id="detail-sketch-img" src="" alt="Sketch"/>
+      </div>
+    </div>
+    <div class="gallery-detail-desc" id="detail-desc" style="display:none;"></div>
   </div>
 </div>
 
