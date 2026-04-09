@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Sign Up — AirBrush</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <h2>Create Account</h2>
+    <p>Join Airbrush — your no-touch art studio.</p>
+
+    <div class="auth-method-tabs">
+      <button class="auth-method-btn active" data-method="email">📧 Email</button>
+      <button class="auth-method-btn" data-method="pattern">🔷 Air Pattern</button>
+      <button class="auth-method-btn" data-method="pin">🔢 Air PIN</button>
+    </div>
+
+    <!-- Email Signup -->
+    <div id="method-email">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="su-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="su-password" placeholder="Min 6 characters"/>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="su-confirm" placeholder="Repeat password"/>
+      </div>
+      <button class="btn-submit" id="email-signup-btn">Create Account</button>
+    </div>
+
+    <!-- Air Pattern Signup -->
+    <div id="method-pattern" style="display:none;">
+      <p class="gesture-instruction">Draw your unlock pattern with your index finger in the air.</p>
+      <div class="gesture-webcam-box" id="pattern-webcam-box">
+        <video id="pattern-video" autoplay muted playsinline></video>
+        <canvas id="pattern-canvas"></canvas>
+      </div>
+      <button class="btn-submit" id="pattern-start-btn">Start Camera & Draw Pattern</button>
+      <button class="btn-submit" id="pattern-save-btn" style="display:none;margin-top:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);">Save Pattern & Sign Up</button>
+    </div>
+
+    <!-- Air PIN Signup -->
+    <div id="method-pin" style="display:none;">
+      <p class="gesture-instruction">Hold up fingers to set each digit of your 4-digit PIN. Each digit is confirmed after a 3-second hold.</p>
+      <div class="gesture-webcam-box" id="pin-webcam-box">
+        <video id="pin-video" autoplay muted playsinline></video>
+        <canvas id="pin-canvas"></canvas>
+      </div>
+      <div id="pin-display" style="text-align:center;font-size:2rem;letter-spacing:1rem;margin:1rem 0;color:var(--accent2);">_ _ _ _</div>
+      <button class="btn-submit" id="pin-start-btn">Start Camera & Set PIN</button>
+      <button class="btn-submit" id="pin-save-btn" style="display:none;margin-top:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);">Save PIN & Sign Up</button>
+    </div>
+
+    <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-top:1.5rem;">
+      Already have an account? <a href="login.html" style="color:var(--accent2);">Log In</a>
+    </p>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+</body>
+</html>
