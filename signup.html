@@ -1,11 +1,106 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Sign Up — AirBrush</title>
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css"/>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign Up — AirBrush</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css"/>
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<!-- face-api.js -->
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
+  .step-badge {
+    display:inline-block;
+    background:linear-gradient(135deg,#7C3AED,#06B6D4);
+    color:#fff;
+    border-radius:20px;
+    padding:4px 14px;
+    font-size:0.75rem;
+    margin-bottom:0.75rem;
+  }
+  .face-capture-box {
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    background:#0a0a0f;
+    border-radius:12px;
+    overflow:hidden;
+    margin:1rem 0;
+    border:1px solid rgba(255,255,255,0.08);
+    display:none;
+  }
+  .face-capture-box video {
+    width:100%;height:100%;object-fit:cover;
+    transform:scaleX(-1);
+  }
+  .face-capture-box canvas {
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    transform:scaleX(-1);
+  }
+  .countdown-ring {
+    position:absolute;
+    top:50%;left:50%;
+    transform:translate(-50%,-50%);
+    font-size:4rem;
+    color:#06B6D4;
+    font-weight:700;
+    text-shadow:0 0 20px #06B6D4;
+    display:none;
+    pointer-events:none;
+  }
+  .gesture-webcam-box {
+    position:relative;
+    width:100%;aspect-ratio:4/3;
+    background:#0a0a0f;
+    border-radius:12px;
+    overflow:hidden;
+    border:1px solid rgba(255,255,255,0.08);
+  }
+  .gesture-webcam-box video {
+    width:100%;height:100%;object-fit:cover;
+    transform:scaleX(-1);
+  }
+  .gesture-webcam-box canvas {
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;
+  }
+  .pin-display {
+    text-align:center;
+    font-size:2.5rem;
+    letter-spacing:0.8rem;
+    margin:1rem 0;
+    color:var(--accent2);
+    font-family:'Calibri Light',Calibri,sans-serif !important;
+  }
+  .digit-confirmed { color:#22c55e !important; }
+  .status-msg {
+    text-align:center;
+    font-size:0.9rem;
+    color:#06B6D4;
+    margin:0.5rem 0;
+    min-height:1.4em;
+  }
+  .gesture-instruction {
+    font-size:0.88rem;
+    color:var(--text-muted);
+    text-align:center;
+    margin:0.5rem 0;
+  }
+  .btn-submit-green {
+    background:linear-gradient(135deg,#22c55e,#16a34a) !important;
+  }
+  .face-check-text {
+    text-align:center;
+    color:#06B6D4;
+    font-size:0.88rem;
+    margin:0.5rem 0;
+  }
+</style>
 </head>
 <body>
 <div class="auth-page">
@@ -19,8 +114,12 @@
       <button class="auth-method-btn" data-method="pin">🔢 Air PIN</button>
     </div>
 
-    <!-- Email Signup -->
+    <!-- ===== EMAIL SIGNUP ===== -->
     <div id="method-email">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="su-name-email" placeholder="Your name"/>
+      </div>
       <div class="form-group">
         <label>Email</label>
         <input type="email" id="su-email" placeholder="you@example.com"/>
@@ -36,27 +135,69 @@
       <button class="btn-submit" id="email-signup-btn">Create Account</button>
     </div>
 
-    <!-- Air Pattern Signup -->
+    <!-- ===== AIR PATTERN SIGNUP ===== -->
     <div id="method-pattern" style="display:none;">
-      <p class="gesture-instruction">Draw your unlock pattern with your index finger in the air.</p>
-      <div class="gesture-webcam-box" id="pattern-webcam-box">
-        <video id="pattern-video" autoplay muted playsinline></video>
-        <canvas id="pattern-canvas"></canvas>
+      <!-- Step 1: Name + draw pattern -->
+      <div id="pattern-step-1">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="su-name-pattern" placeholder="Your name"/>
+        </div>
+        <p class="gesture-instruction">Draw your unlock pattern with your index finger in the air. The pattern will be traced on the camera. Click Save when done.</p>
+        <div class="gesture-webcam-box" id="pattern-webcam-box">
+          <video id="pattern-video" autoplay muted playsinline></video>
+          <canvas id="pattern-canvas"></canvas>
+        </div>
+        <div class="status-msg" id="pattern-status">Click "Start Camera" to begin.</div>
+        <button class="btn-submit" id="pattern-start-btn">Start Camera & Draw Pattern</button>
+        <button class="btn-submit btn-submit-green" id="pattern-save-btn" style="display:none;margin-top:0.75rem;">Save Pattern →</button>
       </div>
-      <button class="btn-submit" id="pattern-start-btn">Start Camera & Draw Pattern</button>
-      <button class="btn-submit" id="pattern-save-btn" style="display:none;margin-top:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);">Save Pattern & Sign Up</button>
+
+      <!-- Step 2: Face capture -->
+      <div id="pattern-step-2" style="display:none;">
+        <div class="step-badge">Step 2 of 2 — Face ID</div>
+        <p class="gesture-instruction">Look directly at the camera. Your face will be captured for 2FA login security.</p>
+        <div class="face-capture-box" id="pattern-face-box" style="display:block;">
+          <video id="pattern-face-video" autoplay muted playsinline></video>
+          <canvas id="pattern-face-canvas"></canvas>
+          <div class="countdown-ring" id="pattern-face-countdown"></div>
+        </div>
+        <div class="status-msg" id="pattern-face-status">Loading face detection…</div>
+        <button class="btn-submit" id="pattern-face-capture-btn">📷 Capture My Face</button>
+      </div>
     </div>
 
-    <!-- Air PIN Signup -->
+    <!-- ===== AIR PIN SIGNUP ===== -->
     <div id="method-pin" style="display:none;">
-      <p class="gesture-instruction">Hold up fingers to set each digit of your 4-digit PIN. Each digit is confirmed after a 3-second hold.</p>
-      <div class="gesture-webcam-box" id="pin-webcam-box">
-        <video id="pin-video" autoplay muted playsinline></video>
-        <canvas id="pin-canvas"></canvas>
+      <!-- Step 1: Name + enter PIN via fingers -->
+      <div id="pin-step-1">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="su-name-pin" placeholder="Your name"/>
+        </div>
+        <p class="gesture-instruction">Hold up fingers to set each digit (1–5 fingers = that digit). Hold still for 2 seconds to confirm each digit. Repeat for all 4 digits.</p>
+        <div class="gesture-webcam-box" id="pin-webcam-box">
+          <video id="pin-video" autoplay muted playsinline></video>
+          <canvas id="pin-canvas"></canvas>
+        </div>
+        <div class="pin-display" id="pin-display">_ _ _ _</div>
+        <div class="status-msg" id="pin-status">Click "Start Camera" to begin.</div>
+        <button class="btn-submit" id="pin-start-btn">Start Camera & Set PIN</button>
+        <button class="btn-submit btn-submit-green" id="pin-save-btn" style="display:none;margin-top:0.75rem;">Save PIN →</button>
       </div>
-      <div id="pin-display" style="text-align:center;font-size:2rem;letter-spacing:1rem;margin:1rem 0;color:var(--accent2);">_ _ _ _</div>
-      <button class="btn-submit" id="pin-start-btn">Start Camera & Set PIN</button>
-      <button class="btn-submit" id="pin-save-btn" style="display:none;margin-top:0.75rem;background:linear-gradient(135deg,#22c55e,#16a34a);">Save PIN & Sign Up</button>
+
+      <!-- Step 2: Face capture -->
+      <div id="pin-step-2" style="display:none;">
+        <div class="step-badge">Step 2 of 2 — Face ID</div>
+        <p class="gesture-instruction">Look directly at the camera. Your face will be captured for 2FA login security.</p>
+        <div class="face-capture-box" id="pin-face-box" style="display:block;">
+          <video id="pin-face-video" autoplay muted playsinline></video>
+          <canvas id="pin-face-canvas"></canvas>
+          <div class="countdown-ring" id="pin-face-countdown"></div>
+        </div>
+        <div class="status-msg" id="pin-face-status">Loading face detection…</div>
+        <button class="btn-submit" id="pin-face-capture-btn">📷 Capture My Face</button>
+      </div>
     </div>
 
     <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-top:1.5rem;">
@@ -64,6 +205,7 @@
     </p>
   </div>
 </div>
+
 <script src="js/auth.js"></script>
 </body>
 </html>
