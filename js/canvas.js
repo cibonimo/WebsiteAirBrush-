@@ -1,184 +1,134 @@
 /* ================================================================
-   canvas.js — AirBrush Main Canvas
-   Features: MediaPipe hand tracking, gesture drawing, mirrored cam,
-   skeleton overlay, particles BG, voice input, sketch-based AI gen
+   canvas.js — AirBrush Main Canvas (fixed)
+   - Selfie-mirror skeleton correctly on hand
+   - Gestures: index=draw, peace=erase, palm=pause ONLY
+   - Stop keeps cam alive, only pauses gesture input
+   - Sketch-to-image AI generation with HF Inference API
+   - "Stick it" saves to gallery with sketch + description
+   - Gallery detail shows AI image + sketch + description
 ================================================================ */
 'use strict';
 
-/* ─────────────────────────────────────────────────────────────
-   PARTICLES BACKGROUND
-───────────────────────────────────────────────────────────── */
+/* ─── AUTH GUARD ─────────────────────────────────────────────── */
+(function checkAuth() {
+  try {
+    const cur = JSON.parse(localStorage.getItem('ab_current') || 'null');
+    if (!cur || !cur.email) { window.location.href = 'login.html'; }
+  } catch { window.location.href = 'login.html'; }
+})();
+
+/* ─── PARTICLES ──────────────────────────────────────────────── */
 (function initParticles() {
   const canvas = document.getElementById('particles-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   let W, H, particles;
-
-  function resize() {
-    W = canvas.width  = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-  }
-
-  function makeParticle() {
-    return {
-      x: Math.random() * W,
-      y: Math.random() * H,
-      r: Math.random() * 1.8 + 0.4,
-      vx: (Math.random() - 0.5) * 0.4,
-      vy: (Math.random() - 0.5) * 0.4,
-      a: Math.random() * 0.5 + 0.15,
-    };
-  }
-
-  function init() {
-    resize();
-    particles = Array.from({ length: 120 }, makeParticle);
-  }
-
+  function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+  function makeP() { return { x:Math.random()*W, y:Math.random()*H, r:Math.random()*1.8+0.4, vx:(Math.random()-0.5)*0.4, vy:(Math.random()-0.5)*0.4, a:Math.random()*0.5+0.15 }; }
+  function init() { resize(); particles = Array.from({length:120}, makeP); }
   function draw() {
-    ctx.clearRect(0, 0, W, H);
+    ctx.clearRect(0,0,W,H);
     for (const p of particles) {
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(124,58,237,${p.a})`;
-      ctx.fill();
-      p.x += p.vx; p.y += p.vy;
-      if (p.x < 0 || p.x > W) p.vx *= -1;
-      if (p.y < 0 || p.y > H) p.vy *= -1;
-    }
-    // Draw faint connecting lines
-    for (let i = 0; i < particles.length; i++) {
-      for (let j = i + 1; j < particles.length; j++) {
-        const dx = particles[i].x - particles[j].x;
-        const dy = particles[i].y - particles[j].y;
-        const d  = Math.sqrt(dx*dx + dy*dy);
-        if (d < 100) {
-          ctx.beginPath();
-          ctx.moveTo(particles[i].x, particles[i].y);
-          ctx.lineTo(particles[j].x, particles[j].y);
-          ctx.strokeStyle = `rgba(124,58,237,${0.08 * (1 - d/100)})`;
-          ctx.lineWidth = 0.5;
-          ctx.stroke();
-        }
-      }
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(124,58,237,${p.a})`; ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      if(p.x<0||p.x>W) p.vx*=-1; if(p.y<0||p.y>H) p.vy*=-1;
     }
     requestAnimationFrame(draw);
   }
-
   window.addEventListener('resize', resize);
-  init();
-  draw();
+  init(); draw();
 })();
 
-/* ─────────────────────────────────────────────────────────────
-   ELEMENT REFS
-───────────────────────────────────────────────────────────── */
-const webcamEl     = document.getElementById('webcam');
-const overlayCanvas= document.getElementById('overlay-canvas');
-const overlayCtx   = overlayCanvas.getContext('2d');
-const drawCanvas   = document.getElementById('draw-canvas');
-const drawCtx      = drawCanvas.getContext('2d');
+/* ─── ELEMENT REFS ───────────────────────────────────────────── */
+const webcamEl      = document.getElementById('webcam');
+const overlayCanvas = document.getElementById('overlay-canvas');
+const overlayCtx    = overlayCanvas.getContext('2d');
+const camTraceCanvas= document.getElementById('cam-trace-canvas');
+const camTraceCtx   = camTraceCanvas.getContext('2d');
+const drawCanvas    = document.getElementById('draw-canvas');
+const drawCtx       = drawCanvas.getContext('2d');
 
-const statusDot    = document.getElementById('status-dot');
-const statusText   = document.getElementById('status-text');
-const gestureInd   = document.getElementById('gesture-indicator');
+const statusDot     = document.getElementById('status-dot');
+const statusText    = document.getElementById('status-text');
+const gestureInd    = document.getElementById('gesture-indicator');
+const navUser       = document.getElementById('nav-user');
 
-const btnStart     = document.getElementById('btn-start');
-const btnStop      = document.getElementById('btn-stop');
-const btnUndo      = document.getElementById('btn-undo');
-const btnClear     = document.getElementById('btn-clear');
-const btnDownload  = document.getElementById('btn-download');
-const btnAirMode   = document.getElementById('btn-air-mode');
-const btnMouseMode = document.getElementById('btn-mouse-mode');
-const btnBrush     = document.getElementById('btn-brush');
-const btnEraser    = document.getElementById('btn-eraser');
-const brushSize    = document.getElementById('brush-size');
-const brushOpacity = document.getElementById('brush-opacity');
-const sizeLabel    = document.getElementById('size-label');
-const opacityLabel = document.getElementById('opacity-label');
-const colorCustom  = document.getElementById('color-custom');
-const navUser      = document.getElementById('nav-user');
-const btnLogout    = document.getElementById('btn-logout');
-const btnDone      = document.getElementById('btn-done-drawing');
-const genSection   = document.getElementById('gen-section');
+const btnStart      = document.getElementById('btn-start');
+const btnStop       = document.getElementById('btn-stop');
+const btnUndo       = document.getElementById('btn-undo');
+const btnClear      = document.getElementById('btn-clear');
+const btnAirMode    = document.getElementById('btn-air-mode');
+const btnMouseMode  = document.getElementById('btn-mouse-mode');
+const btnBrush      = document.getElementById('btn-brush');
+const btnEraser     = document.getElementById('btn-eraser');
+const brushSize     = document.getElementById('brush-size');
+const brushOpacity  = document.getElementById('brush-opacity');
+const sizeLabel     = document.getElementById('size-label');
+const opacityLabel  = document.getElementById('opacity-label');
+const colorCustom   = document.getElementById('color-custom');
+const btnDone       = document.getElementById('btn-done-drawing');
+const genSection    = document.getElementById('gen-section');
+const btnLogout     = document.getElementById('btn-logout');
 
-/* ─────────────────────────────────────────────────────────────
-   DRAWING STATE
-───────────────────────────────────────────────────────────── */
-let mode           = 'air';   // 'air' | 'mouse'
-let tool           = 'brush'; // 'brush' | 'eraser'
+/* ─── DRAWING STATE ──────────────────────────────────────────── */
+let mode           = 'air';
+let tool           = 'brush';
 let currentColor   = '#7C3AED';
 let currentSize    = 4;
 let currentOpacity = 1;
 let isDrawing      = false;
 let lastX = 0, lastY = 0;
 let undoStack      = [];
-let handActive     = false;
+
+// Camera & MediaPipe state
 let camStream      = null;
 let hands          = null;
 let mediapipeCam   = null;
-let running        = false;
+let camRunning     = false;  // is the camera physically on?
+let trackingActive = false;  // are we processing gestures and drawing?
 
-/* Gesture: fist + shake to clear */
-let fistDetectedAt = null;
-let fistPrevPos    = null;
-let shakeCount     = 0;
-const FIST_SHAKE_THRESHOLD = 0.06;
-const FIST_SHAKE_NEEDED    = 3;
+// Cam-trace overlay accumulated strokes
+let camTraceStrokes = []; // [{points:[{x,y}], color, size, opacity, isErase}]
+let currentCamStroke = null;
 
-/* Gesture: draw on overlay too */
-let overlayLastX = 0, overlayLastY = 0, overlayDrawing = false;
-
-/* ─────────────────────────────────────────────────────────────
-   USER INFO
-───────────────────────────────────────────────────────────── */
+/* ─── USER INFO ──────────────────────────────────────────────── */
 try {
   const cur = JSON.parse(localStorage.getItem('ab_current') || '{}');
   if (cur.name && navUser) navUser.textContent = `👤 ${cur.name}`;
 } catch {}
 
 btnLogout?.addEventListener('click', () => {
+  if (camStream) camStream.getTracks().forEach(t => t.stop());
   localStorage.removeItem('ab_current');
   window.location.href = 'index.html';
 });
 
-/* ─────────────────────────────────────────────────────────────
-   CANVAS RESIZE
-───────────────────────────────────────────────────────────── */
+/* ─── CANVAS RESIZE ──────────────────────────────────────────── */
 function resizeCanvases() {
   const drawBox = drawCanvas.parentElement;
-  const W = drawBox.clientWidth  || 560;
-  const H = drawBox.clientHeight || 420;
-  // Save draw content
-  const snapshot = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
-  drawCanvas.width  = W;
-  drawCanvas.height = H;
-  drawCtx.putImageData(snapshot, 0, 0);
+  const DW = drawBox.clientWidth  || 560;
+  const DH = drawBox.clientHeight || 420;
+  const snap = drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height);
+  drawCanvas.width = DW; drawCanvas.height = DH;
+  drawCtx.putImageData(snap, 0, 0);
 
-  // Overlay matches webcam
   const camBox = overlayCanvas.parentElement;
-  overlayCanvas.width  = camBox.clientWidth  || 560;
-  overlayCanvas.height = camBox.clientHeight || 420;
+  const CW = camBox.clientWidth  || 560;
+  const CH = camBox.clientHeight || 420;
+  overlayCanvas.width  = CW; overlayCanvas.height  = CH;
+  camTraceCanvas.width = CW; camTraceCanvas.height = CH;
+
+  // Replay cam-trace strokes after resize
+  replayCamTraceStrokes();
 }
 window.addEventListener('resize', resizeCanvases);
 setTimeout(resizeCanvases, 200);
 
-/* ─────────────────────────────────────────────────────────────
-   DRAW UTILITIES
-───────────────────────────────────────────────────────────── */
+/* ─── DRAW UTILITIES ─────────────────────────────────────────── */
 function saveUndo() {
-  undoStack.push(drawCtx.getImageData(0, 0, drawCanvas.width, drawCanvas.height));
+  undoStack.push(drawCtx.getImageData(0,0,drawCanvas.width,drawCanvas.height));
   if (undoStack.length > 30) undoStack.shift();
-}
-
-function startStroke(x, y, ctx, w, h, isOverlay) {
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  if (isOverlay) {
-    overlayDrawing = true; overlayLastX = x; overlayLastY = y;
-  } else {
-    isDrawing = true; lastX = x; lastY = y;
-  }
 }
 
 function applyBrushStyle(ctx, isErase) {
@@ -190,83 +140,68 @@ function applyBrushStyle(ctx, isErase) {
   ctx.lineJoin     = 'round';
 }
 
-function drawStroke(x, y) {
-  if (!isDrawing) return;
-  applyBrushStyle(drawCtx, tool === 'eraser');
-  drawCtx.lineTo(x, y);
-  drawCtx.stroke();
-  drawCtx.beginPath();
-  drawCtx.moveTo(x, y);
-  lastX = x; lastY = y;
-}
-
-/* Also trace on overlay (on top of webcam feed) */
-function drawOverlayStroke(x, y) {
-  if (!overlayDrawing) return;
-  overlayCtx.save();
-  overlayCtx.globalCompositeOperation = tool === 'eraser' ? 'destination-out' : 'source-over';
-  overlayCtx.globalAlpha = tool === 'eraser' ? 1 : currentOpacity * 0.7;
-  overlayCtx.strokeStyle = currentColor;
-  overlayCtx.lineWidth   = currentSize;
-  overlayCtx.lineCap     = 'round';
-  overlayCtx.lineJoin    = 'round';
-  overlayCtx.beginPath();
-  overlayCtx.moveTo(overlayLastX, overlayLastY);
-  overlayCtx.lineTo(x, y);
-  overlayCtx.stroke();
-  overlayCtx.restore();
-  overlayLastX = x; overlayLastY = y;
-}
-
-function endStroke() {
-  if (isDrawing) {
-    drawCtx.globalCompositeOperation = 'source-over';
-    drawCtx.globalAlpha = 1;
+/* ─── CAM-TRACE STROKES ──────────────────────────────────────── */
+/* The cam-trace canvas has CSS scaleX(-1). We draw at RAW (lm.x * W)
+   so after CSS flip it appears at (1-lm.x)*W — same selfie position
+   as the mirrored video. This keeps cam-trace aligned with the video.   */
+function replayCamTraceStrokes() {
+  camTraceCtx.clearRect(0, 0, camTraceCanvas.width, camTraceCanvas.height);
+  for (const stroke of camTraceStrokes) {
+    if (stroke.points.length < 2) continue;
+    camTraceCtx.save();
+    camTraceCtx.globalCompositeOperation = stroke.isErase ? 'destination-out' : 'source-over';
+    camTraceCtx.globalAlpha   = stroke.isErase ? 1 : stroke.opacity * 0.7;
+    camTraceCtx.strokeStyle   = stroke.color;
+    camTraceCtx.lineWidth     = stroke.size;
+    camTraceCtx.lineCap       = 'round';
+    camTraceCtx.lineJoin      = 'round';
+    camTraceCtx.beginPath();
+    camTraceCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    for (let i=1; i<stroke.points.length; i++) {
+      camTraceCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+    }
+    camTraceCtx.stroke();
+    camTraceCtx.restore();
   }
-  isDrawing = false; overlayDrawing = false;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   MOUSE MODE
-───────────────────────────────────────────────────────────── */
+function clearAllTraces() {
+  camTraceStrokes = [];
+  currentCamStroke = null;
+  camTraceCtx.clearRect(0, 0, camTraceCanvas.width, camTraceCanvas.height);
+}
+
+/* ─── MOUSE MODE ─────────────────────────────────────────────── */
 drawCanvas.addEventListener('mousedown', e => {
   if (mode !== 'mouse') return;
   saveUndo();
   const {x,y} = canvasPos(e, drawCanvas);
-  startStroke(x, y, drawCtx, drawCanvas.width, drawCanvas.height, false);
-  drawStroke(x, y);
+  isDrawing = true; lastX = x; lastY = y;
+  applyBrushStyle(drawCtx, tool === 'eraser');
+  drawCtx.beginPath(); drawCtx.moveTo(x, y);
 });
 drawCanvas.addEventListener('mousemove', e => {
   if (mode !== 'mouse' || !isDrawing) return;
   const {x,y} = canvasPos(e, drawCanvas);
-  drawStroke(x, y);
+  drawCtx.lineTo(x, y); drawCtx.stroke();
+  drawCtx.beginPath(); drawCtx.moveTo(x, y);
+  lastX = x; lastY = y;
 });
-drawCanvas.addEventListener('mouseup',   endStroke);
-drawCanvas.addEventListener('mouseleave',endStroke);
-
+drawCanvas.addEventListener('mouseup',    () => { isDrawing = false; drawCtx.globalAlpha=1; drawCtx.globalCompositeOperation='source-over'; });
+drawCanvas.addEventListener('mouseleave', () => { isDrawing = false; });
 function canvasPos(e, canvas) {
   const r = canvas.getBoundingClientRect();
   return { x: e.clientX - r.left, y: e.clientY - r.top };
 }
 
-/* ─────────────────────────────────────────────────────────────
-   CONTROL PANEL
-───────────────────────────────────────────────────────────── */
-btnAirMode?.addEventListener('click',   () => { mode = 'air';   btnAirMode.classList.add('active'); btnMouseMode.classList.remove('active'); });
-btnMouseMode?.addEventListener('click', () => { mode = 'mouse'; btnMouseMode.classList.add('active'); btnAirMode.classList.remove('active'); });
-btnBrush?.addEventListener('click',   () => { tool = 'brush';  btnBrush.classList.add('active');  btnEraser.classList.remove('active'); });
-btnEraser?.addEventListener('click',  () => { tool = 'eraser'; btnEraser.classList.add('active'); btnBrush.classList.remove('active'); });
-
-brushSize?.addEventListener('input', e => {
-  currentSize = parseInt(e.target.value);
-  if (sizeLabel) sizeLabel.textContent = currentSize;
-});
-brushOpacity?.addEventListener('input', e => {
-  currentOpacity = parseInt(e.target.value) / 100;
-  if (opacityLabel) opacityLabel.textContent = e.target.value;
-});
+/* ─── CONTROL PANEL ──────────────────────────────────────────── */
+btnAirMode?.addEventListener('click',   () => { mode='air';   btnAirMode.classList.add('active'); btnMouseMode.classList.remove('active'); });
+btnMouseMode?.addEventListener('click', () => { mode='mouse'; btnMouseMode.classList.add('active'); btnAirMode.classList.remove('active'); });
+btnBrush?.addEventListener('click',   () => { tool='brush';  btnBrush.classList.add('active');  btnEraser.classList.remove('active'); });
+btnEraser?.addEventListener('click',  () => { tool='eraser'; btnEraser.classList.add('active'); btnBrush.classList.remove('active'); });
+brushSize?.addEventListener('input',  e => { currentSize = parseInt(e.target.value); if (sizeLabel) sizeLabel.textContent = currentSize; });
+brushOpacity?.addEventListener('input',e => { currentOpacity = parseInt(e.target.value)/100; if (opacityLabel) opacityLabel.textContent = e.target.value; });
 colorCustom?.addEventListener('input', e => { currentColor = e.target.value; });
-
 document.querySelectorAll('.swatch').forEach(s => {
   s.addEventListener('click', () => {
     document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
@@ -275,28 +210,19 @@ document.querySelectorAll('.swatch').forEach(s => {
     if (colorCustom) colorCustom.value = currentColor;
   });
 });
-
 btnUndo?.addEventListener('click', () => {
-  if (undoStack.length === 0) return;
+  if (!undoStack.length) return;
   drawCtx.putImageData(undoStack.pop(), 0, 0);
 });
 btnClear?.addEventListener('click', () => {
   saveUndo();
   drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-});
-btnDownload?.addEventListener('click', () => {
-  const a = document.createElement('a');
-  a.download = `airbrush-${Date.now()}.png`;
-  a.href = drawCanvas.toDataURL('image/png');
-  a.click();
+  clearAllTraces();
 });
 
-/* ─────────────────────────────────────────────────────────────
-   MEDIAPIPE HANDS
-───────────────────────────────────────────────────────────── */
+/* ─── MEDIAPIPE HANDS ────────────────────────────────────────── */
 function initHands() {
-  hands = new Hands({ locateFile: f =>
-    `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
+  hands = new Hands({ locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${f}` });
   hands.setOptions({
     maxNumHands: 1,
     modelComplexity: 1,
@@ -306,198 +232,171 @@ function initHands() {
   hands.onResults(onHandResults);
 }
 
-/* ── Gesture detection ── */
+/* Count extended fingers for one hand */
 function extendedFingers(lm) {
-  // Returns array of which fingers are up: [thumb, index, middle, ring, pinky]
   const up = [false,false,false,false,false];
   up[0] = lm[4].x < lm[3].x; // thumb (mirrored)
-  const tips = [8,12,16,20], pips = [6,10,14,18];
+  const tips=[8,12,16,20], pips=[6,10,14,18];
   for (let i=0;i<4;i++) up[i+1] = lm[tips[i]].y < lm[pips[i]].y;
   return up;
 }
 
+/* Detect gesture from one hand landmarks */
 function detectGesture(lm) {
-  const up = extendedFingers(lm);
+  const up    = extendedFingers(lm);
   const count = up.filter(Boolean).length;
-
-  // Open palm (4-5 fingers up) → pause
-  if (count >= 4) return 'palm';
-  // Index + middle only → erase
-  if (!up[0] && up[1] && up[2] && !up[3] && !up[4]) return 'peace';
-  // Index only → draw
-  if (!up[0] && up[1] && !up[2] && !up[3] && !up[4]) return 'index';
-  // Fist (0 fingers) → maybe clear
-  if (count === 0) return 'fist';
+  if (count >= 4)                                          return 'palm';  // open palm → pause
+  if (!up[0] && up[1] && up[2] && !up[3] && !up[4])      return 'peace'; // index+middle → erase
+  if (!up[0] && up[1] && !up[2] && !up[3] && !up[4])     return 'index'; // index only → draw
   return 'other';
 }
 
+/* ── MAIN HAND RESULTS CALLBACK ── */
 function onHandResults(results) {
-  if (!running) return;
-
-  // Clear overlay skeleton — but preserve drawn strokes (drawn beneath)
-  // We use two separate layers:
-  // 1. overlayCanvas draws strokes on top of webcam
-  // 2. We draw skeleton fresh each frame in a temporary context
-  //    by drawing strokes first, then skeleton on top
-
-  // For simplicity: overlay is the skeleton layer; we draw strokes to draw-canvas only
-  // To also show strokes on cam: we maintain a separate "cam drawing" canvas
+  /* Always clear the skeleton overlay canvas each frame */
   const W = overlayCanvas.width;
   const H = overlayCanvas.height;
-
   overlayCtx.clearRect(0, 0, W, H);
 
+  if (!trackingActive) {
+    // Cam is on but tracking paused — end any stroke in progress
+    if (isDrawing) { endStroke(); }
+    if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; replayCamTraceStrokes(); }
+    return;
+  }
+
   if (!results.multiHandLandmarks?.length) {
-    // No hand: end any ongoing stroke
-    if (isDrawing) { endStroke(); saveUndo(); }
+    if (isDrawing) { endStroke(); }
+    if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; replayCamTraceStrokes(); }
     showGesture('');
     return;
   }
 
   const lm = results.multiHandLandmarks[0];
 
-  /* ── Draw skeleton (mirrored coordinates since video is CSS-mirrored)
-     Landmarks come from original un-mirrored video internally,
-     so we flip x: drawX = (1 - lm.x) * W  ── */
-  const mirroredLm = lm.map(p => ({ ...p, x: 1 - p.x }));
-
-  drawConnectors(overlayCtx, mirroredLm, HAND_CONNECTIONS,
-    { color: 'rgba(124,58,237,0.7)', lineWidth: 2 });
-  drawLandmarks(overlayCtx, mirroredLm,
+  /* ── Draw skeleton ──────────────────────────────────────────
+     overlayCanvas has CSS scaleX(-1).
+     We draw at RAW lm.x coords (not mirrored in code).
+     After CSS flip the skeleton appears at (1-lm.x) = selfie position,
+     exactly matching where the hand is in the mirrored video.          */
+  drawConnectors(overlayCtx, lm, HAND_CONNECTIONS,
+    { color: 'rgba(124,58,237,0.85)', lineWidth: 2 });
+  drawLandmarks(overlayCtx, lm,
     { color: '#06B6D4', lineWidth: 1, radius: 3 });
 
-  /* ── Gesture detection ── */
-  const gesture = detectGesture(lm); // use original lm for logic
-  const tipX = (1 - lm[8].x) * W;  // mirrored tip X
-  const tipY = lm[8].y * H;
+  /* ── Gesture & coordinate mapping ── */
+  const gesture = detectGesture(lm);
 
-  /* Map to draw-canvas coordinates */
-  const scaleX = drawCanvas.width  / W;
-  const scaleY = drawCanvas.height / H;
-  const drawX  = tipX * scaleX;
-  const drawY  = tipY * scaleY;
+  /* RAW tip X for overlay/cam-trace canvas (CSS will flip it to selfie pos) */
+  const rawTipX = lm[8].x * W;
+  const rawTipY = lm[8].y * H;
+
+  /* MIRRORED tip X/Y for draw-canvas (no CSS flip, so we do it in code) */
+  const drawX = (1 - lm[8].x) * drawCanvas.width;
+  const drawY = lm[8].y       * drawCanvas.height;
 
   switch (gesture) {
+
     case 'index': {
-      // Draw mode
+      /* ── DRAW mode ── */
       if (mode !== 'air') break;
       tool = 'brush';
-      btnBrush?.classList.add('active');
-      btnEraser?.classList.remove('active');
+      btnBrush?.classList.add('active'); btnEraser?.classList.remove('active');
 
       if (!isDrawing) {
         saveUndo();
         isDrawing = true; lastX = drawX; lastY = drawY;
-        overlayDrawing = true; overlayLastX = tipX; overlayLastY = tipY;
         applyBrushStyle(drawCtx, false);
         drawCtx.beginPath(); drawCtx.moveTo(drawX, drawY);
+        // Start cam-trace stroke
+        currentCamStroke = {
+          points: [{ x: rawTipX, y: rawTipY }],
+          color: currentColor, size: currentSize,
+          opacity: currentOpacity, isErase: false
+        };
+      } else {
+        /* Continue stroke on draw-canvas */
+        applyBrushStyle(drawCtx, false);
+        drawCtx.lineTo(drawX, drawY); drawCtx.stroke();
+        drawCtx.beginPath(); drawCtx.moveTo(drawX, drawY);
+        lastX = drawX; lastY = drawY;
+        /* Continue cam-trace stroke */
+        if (currentCamStroke) { currentCamStroke.points.push({ x: rawTipX, y: rawTipY }); replayCamTraceStrokes(); }
       }
 
-      applyBrushStyle(drawCtx, false);
-      drawCtx.lineTo(drawX, drawY);
-      drawCtx.stroke();
-      drawCtx.beginPath(); drawCtx.moveTo(drawX, drawY);
-
-      // Also draw on overlay (cam feed layer)
-      drawOverlayStroke(tipX, tipY);
-
-      lastX = drawX; lastY = drawY;
-      showGesture('✏️ Drawing');
-
-      // Draw fingertip dot
+      /* Fingertip dot on overlay */
       overlayCtx.beginPath();
-      overlayCtx.arc(tipX, tipY, currentSize/2 + 3, 0, Math.PI*2);
+      overlayCtx.arc(rawTipX, rawTipY, currentSize/2 + 3, 0, Math.PI*2);
       overlayCtx.fillStyle = currentColor;
-      overlayCtx.globalAlpha = 0.7;
+      overlayCtx.globalAlpha = 0.8;
       overlayCtx.fill();
       overlayCtx.globalAlpha = 1;
+      showGesture('✏️ Drawing');
       break;
     }
 
     case 'peace': {
-      // Eraser mode
+      /* ── ERASE mode ── */
       if (isDrawing) { endStroke(); }
+      if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; }
       tool = 'eraser';
-      btnEraser?.classList.add('active');
-      btnBrush?.classList.remove('active');
+      btnEraser?.classList.add('active'); btnBrush?.classList.remove('active');
 
+      // Erase on draw-canvas
+      applyBrushStyle(drawCtx, true);
       if (!isDrawing) {
         saveUndo();
-        isDrawing = true; lastX = drawX; lastY = drawY;
-        applyBrushStyle(drawCtx, true);
+        isDrawing = true;
         drawCtx.beginPath(); drawCtx.moveTo(drawX, drawY);
       }
-      applyBrushStyle(drawCtx, true);
-      drawCtx.lineTo(drawX, drawY);
-      drawCtx.stroke();
+      drawCtx.lineTo(drawX, drawY); drawCtx.stroke();
       drawCtx.beginPath(); drawCtx.moveTo(drawX, drawY);
       lastX = drawX; lastY = drawY;
-      showGesture('⬜ Erasing');
+
+      // Erase on cam-trace
+      if (!currentCamStroke) {
+        currentCamStroke = { points: [{ x: rawTipX, y: rawTipY }], color: currentColor, size: currentSize+4, opacity:1, isErase: true };
+      } else {
+        currentCamStroke.points.push({ x: rawTipX, y: rawTipY });
+        replayCamTraceStrokes();
+      }
 
       // Eraser cursor on overlay
       overlayCtx.beginPath();
-      overlayCtx.arc(tipX, tipY, currentSize + 4, 0, Math.PI*2);
-      overlayCtx.strokeStyle = 'rgba(255,255,255,0.6)';
-      overlayCtx.lineWidth = 1;
+      overlayCtx.arc(rawTipX, rawTipY, currentSize + 4, 0, Math.PI*2);
+      overlayCtx.strokeStyle = 'rgba(255,255,255,0.7)';
+      overlayCtx.lineWidth   = 1.5;
       overlayCtx.stroke();
+      showGesture('⬜ Erasing');
       break;
     }
 
     case 'palm': {
-      // Pause
-      if (isDrawing) { endStroke(); saveUndo(); }
+      /* ── PAUSE ── */
+      if (isDrawing) { endStroke(); }
+      if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; replayCamTraceStrokes(); }
       showGesture('🖐 Paused');
       break;
     }
 
-    case 'fist': {
-      // Track shake to clear
-      if (isDrawing) { endStroke(); }
-      const wx = lm[0].x, wy = lm[0].y;
-
-      if (!fistDetectedAt) {
-        fistDetectedAt = Date.now();
-        fistPrevPos    = { x: wx, y: wy };
-        shakeCount     = 0;
-      } else {
-        if (fistPrevPos) {
-          const dx = Math.abs(wx - fistPrevPos.x);
-          if (dx > FIST_SHAKE_THRESHOLD) {
-            shakeCount++;
-            fistPrevPos = { x: wx, y: wy };
-          }
-        }
-        if (shakeCount >= FIST_SHAKE_NEEDED) {
-          saveUndo();
-          drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-          shakeCount = 0; fistDetectedAt = null; fistPrevPos = null;
-          showGesture('🗑 Cleared!');
-          flash('Canvas cleared');
-        } else {
-          showGesture(`✊ Shake to clear (${shakeCount}/${FIST_SHAKE_NEEDED})`);
-        }
-      }
-      break;
-    }
-
     default: {
-      if (isDrawing) { endStroke(); saveUndo(); }
-      fistDetectedAt = null; shakeCount = 0;
+      if (isDrawing) { endStroke(); }
+      if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; replayCamTraceStrokes(); }
       showGesture('');
     }
   }
+}
 
-  // Reset fist if gesture changed
-  if (gesture !== 'fist') { fistDetectedAt = null; shakeCount = 0; fistPrevPos = null; }
+function endStroke() {
+  isDrawing = false;
+  drawCtx.globalCompositeOperation = 'source-over';
+  drawCtx.globalAlpha = 1;
 }
 
 let gestureTimeout;
 function showGesture(text) {
   if (!gestureInd) return;
-  if (!text) {
-    gestureInd.classList.remove('visible');
-    return;
-  }
+  if (!text) { gestureInd.classList.remove('visible'); return; }
   gestureInd.textContent = text;
   gestureInd.classList.add('visible');
   clearTimeout(gestureTimeout);
@@ -507,44 +406,53 @@ function showGesture(text) {
 function flash(msg) {
   let el = document.getElementById('canvas-flash');
   if (!el) {
-    el = document.createElement('div');
-    el.id = 'canvas-flash';
+    el = document.createElement('div'); el.id = 'canvas-flash';
     Object.assign(el.style, {
       position:'fixed',top:'50%',left:'50%',transform:'translate(-50%,-50%)',
-      background:'rgba(0,0,0,0.75)',color:'#fff',
-      padding:'12px 28px',borderRadius:'12px',fontSize:'1rem',
-      pointerEvents:'none',zIndex:'9999',opacity:'0',transition:'opacity 0.3s',
-      fontFamily:"'Calibri Light',Calibri,sans-serif"
+      background:'rgba(0,0,0,0.75)',color:'#fff',padding:'12px 28px',
+      borderRadius:'12px',fontSize:'1rem',pointerEvents:'none',
+      zIndex:'9999',opacity:'0',transition:'opacity 0.3s',
+      fontFamily:"'Caveat',cursive"
     });
     document.body.appendChild(el);
   }
-  el.textContent = msg;
-  el.style.opacity = '1';
-  setTimeout(() => { el.style.opacity = '0'; }, 1200);
+  el.textContent = msg; el.style.opacity = '1';
+  setTimeout(() => { el.style.opacity = '0'; }, 1400);
 }
 
-/* ─────────────────────────────────────────────────────────────
-   START / STOP
-───────────────────────────────────────────────────────────── */
+/* ─── START / STOP ───────────────────────────────────────────── */
 btnStart?.addEventListener('click', async () => {
-  if (running) return;
+  if (camRunning) {
+    // Camera already on — just resume tracking
+    trackingActive = true;
+    if (statusDot)  statusDot.style.background = '#22c55e';
+    if (statusText) statusText.textContent = 'Tracking active';
+    btnStart.disabled = true;
+    if (btnStop) btnStop.disabled = false;
+    return;
+  }
+
   try {
-    camStream = await navigator.mediaDevices.getUserMedia({ video: { width:640, height:480 } });
+    camStream = await navigator.mediaDevices.getUserMedia({ video:{ width:640, height:480 } });
     webcamEl.srcObject = camStream;
     await new Promise(r => webcamEl.addEventListener('loadedmetadata', r, { once:true }));
 
+    // Set overlay and cam-trace canvas size to match video
     overlayCanvas.width  = webcamEl.videoWidth;
     overlayCanvas.height = webcamEl.videoHeight;
+    camTraceCanvas.width = webcamEl.videoWidth;
+    camTraceCanvas.height= webcamEl.videoHeight;
 
     if (!hands) initHands();
     mediapipeCam = new Camera(webcamEl, {
-      onFrame: async () => { if (running) await hands.send({ image: webcamEl }); },
+      onFrame: async () => { await hands.send({ image: webcamEl }); },
       width: 640, height: 480
     });
     mediapipeCam.start();
-    running = true;
+    camRunning    = true;
+    trackingActive = true;
 
-    if (statusDot)  statusDot.style.background  = '#22c55e';
+    if (statusDot)  statusDot.style.background = '#22c55e';
     if (statusText) statusText.textContent = 'Tracking active';
     btnStart.disabled = true;
     if (btnStop) btnStop.disabled = false;
@@ -555,255 +463,195 @@ btnStart?.addEventListener('click', async () => {
 });
 
 btnStop?.addEventListener('click', () => {
-  running = false;
-  if (camStream) camStream.getTracks().forEach(t => t.stop());
-  webcamEl.srcObject = null;
-  overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-  if (statusDot)  statusDot.style.background  = '#ef4444';
-  if (statusText) statusText.textContent = 'Stopped';
+  /* Stop gesture input but KEEP camera live */
+  trackingActive = false;
+  if (isDrawing) endStroke();
+  if (currentCamStroke) { camTraceStrokes.push(currentCamStroke); currentCamStroke = null; replayCamTraceStrokes(); }
+  if (statusDot)  statusDot.style.background = '#F59E0B';
+  if (statusText) statusText.textContent = 'Input paused — cam active';
   btnStart.disabled = false;
   if (btnStop) btnStop.disabled = true;
 });
 
-/* ─────────────────────────────────────────────────────────────
-   DONE DRAWING → SHOW GENERATION SECTION
-───────────────────────────────────────────────────────────── */
-btnDone?.addEventListener('click', () => {
-  if (genSection) {
-    genSection.style.display = '';
-    genSection.scrollIntoView({ behavior:'smooth' });
-  }
+/* Stop camera entirely on unload */
+window.addEventListener('beforeunload', () => {
+  if (camStream) camStream.getTracks().forEach(t => t.stop());
 });
 
-/* ─────────────────────────────────────────────────────────────
-   HF TOKEN
-───────────────────────────────────────────────────────────── */
+/* ─── DONE DRAWING ───────────────────────────────────────────── */
+btnDone?.addEventListener('click', () => {
+  if (genSection) { genSection.style.display = ''; genSection.scrollIntoView({ behavior:'smooth' }); }
+});
+
+/* ─── HF TOKEN ───────────────────────────────────────────────── */
 const hfTokenInput = document.getElementById('hf-token');
 const btnSaveToken = document.getElementById('btn-save-token');
-
-// Load saved token
 if (hfTokenInput) {
   const saved = localStorage.getItem('hf_token');
   if (saved) hfTokenInput.value = saved;
 }
 btnSaveToken?.addEventListener('click', () => {
-  const t = hfTokenInput.value.trim();
+  const t = hfTokenInput?.value.trim();
   if (t) { localStorage.setItem('hf_token', t); flash('Token saved!'); }
 });
-
 function getHFToken() {
   return (hfTokenInput?.value.trim() || localStorage.getItem('hf_token') || '').trim();
 }
 
-/* ─────────────────────────────────────────────────────────────
-   VOICE INPUT — with visual "listening" feedback
-───────────────────────────────────────────────────────────── */
+/* ─── VOICE INPUT ────────────────────────────────────────────── */
 const btnVoice    = document.getElementById('btn-voice');
 const aiDescInput = document.getElementById('ai-description');
 const interimEl   = document.getElementById('interim-text');
-
-let recognition = null;
-let recActive   = false;
+let recognition   = null;
+let recActive     = false;
 
 if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SpeechRecognition();
-  recognition.continuous     = false;
-  recognition.interimResults = true;
-  recognition.lang           = 'en-US';
-
-  recognition.onstart = () => {
-    recActive = true;
-    btnVoice?.classList.add('listening');
-    if (btnVoice) btnVoice.textContent = '🔴';
-    if (interimEl) interimEl.textContent = 'Listening…';
-  };
-
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.continuous = false; recognition.interimResults = true; recognition.lang = 'en-US';
+  recognition.onstart  = () => { recActive=true; btnVoice?.classList.add('listening'); if(btnVoice) btnVoice.textContent='🔴'; if(interimEl) interimEl.textContent='Listening…'; };
   recognition.onresult = (e) => {
-    let interim = '', final = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const t = e.results[i][0].transcript;
-      if (e.results[i].isFinal) final += t;
-      else interim += t;
+    let interim='', final='';
+    for (let i=e.resultIndex;i<e.results.length;i++) {
+      const t=e.results[i][0].transcript;
+      if (e.results[i].isFinal) final+=t; else interim+=t;
     }
-    if (interimEl) interimEl.textContent = interim || final || '';
-    if (final && aiDescInput) {
-      aiDescInput.value += (aiDescInput.value ? ' ' : '') + final.trim();
-      if (interimEl) interimEl.textContent = '';
-    }
+    if(interimEl) interimEl.textContent=interim||final||'';
+    if(final && aiDescInput) { aiDescInput.value+=(aiDescInput.value?' ':'')+final.trim(); if(interimEl) interimEl.textContent=''; }
   };
-
-  recognition.onerror = (e) => {
-    console.warn('Speech error:', e.error);
-    stopListening();
-    if (interimEl) interimEl.textContent = `Mic error: ${e.error}`;
-  };
-
-  recognition.onend = stopListening;
+  recognition.onerror = () => stopListening();
+  recognition.onend   = stopListening;
 }
-
-function stopListening() {
-  recActive = false;
-  btnVoice?.classList.remove('listening');
-  if (btnVoice) btnVoice.textContent = '🎤';
-}
-
+function stopListening() { recActive=false; btnVoice?.classList.remove('listening'); if(btnVoice) btnVoice.textContent='🎤'; }
 btnVoice?.addEventListener('click', () => {
   if (!recognition) { flash('Speech not supported in this browser'); return; }
-  if (recActive) { recognition.stop(); }
-  else { recognition.start(); }
+  if (recActive) recognition.stop(); else recognition.start();
 });
 
-/* ─────────────────────────────────────────────────────────────
-   AI IMAGE GENERATION — sketch-based (img2img / ControlNet)
-───────────────────────────────────────────────────────────── */
-const btnGenerate     = document.getElementById('btn-generate');
-const aiPlaceholder   = document.getElementById('ai-placeholder');
-const aiLoading       = document.getElementById('ai-loading');
-const aiLoadingText   = document.getElementById('ai-loading-text');
-const aiImagesGrid    = document.getElementById('ai-images-grid');
-const aiError         = document.getElementById('ai-error');
+/* ─── AI IMAGE GENERATION ────────────────────────────────────── */
+const btnGenerate   = document.getElementById('btn-generate');
+const aiPlaceholder = document.getElementById('ai-placeholder');
+const aiLoading     = document.getElementById('ai-loading');
+const aiLoadingText = document.getElementById('ai-loading-text');
+const aiError       = document.getElementById('ai-error');
+const aiImgWrap     = document.getElementById('ai-img-wrap');
+const aiResultImg   = document.getElementById('ai-result-img');
+const btnStick      = document.getElementById('btn-stick-it');
 
-const STYLE_PROMPTS = {
-  realistic:  'photorealistic, ultra-detailed, professional photography, 8k, sharp focus',
-  creative:   'creative digital art, vibrant colors, artistic, imaginative, detailed illustration',
-  dynamic:    'dynamic composition, dramatic lighting, motion blur, energetic, cinematic',
-  portrait:   'portrait photography, bokeh background, professional lighting, detailed face',
-  stock:      'stock photo, clean background, professional, commercial photography, sharp',
-  watercolour:'watercolor painting, soft brushstrokes, pastel colors, artistic, delicate',
-  bw:         'black and white photography, high contrast, dramatic shadows, monochrome, cinematic',
-  vibrant:    'vibrant colors, high saturation, vivid, colorful digital art, neon accents',
-};
-
-const NEGATIVE_PROMPT = 'blurry, low quality, distorted, deformed, text, watermark, signature, extra limbs, out of frame';
+const NEGATIVE_PROMPT = 'blurry, low quality, distorted, deformed, text, watermark, signature, extra limbs, out of frame, abstract, cartoon';
 
 btnGenerate?.addEventListener('click', async () => {
   const token = getHFToken();
   if (!token) {
-    showError('Please enter your Hugging Face token above (get one free at huggingface.co/settings/tokens).');
+    showError('Please enter your Hugging Face token above. Get one free at huggingface.co/settings/tokens');
     return;
   }
 
-  const count       = parseInt(document.getElementById('gen-count')?.value || '1');
-  const style       = document.getElementById('gen-style')?.value || 'realistic';
-  const description = aiDescInput?.value.trim() || '';
-  const stylePrompt = STYLE_PROMPTS[style] || STYLE_PROMPTS.realistic;
-
-  // Get sketch as base64
+  const description  = aiDescInput?.value.trim() || '';
   const sketchBase64 = drawCanvas.toDataURL('image/png').split(',')[1];
+  const hasContent   = hasDrawing(drawCanvas);
 
-  // Check if canvas has any content
-  const hasContent = hasDrawing(drawCanvas);
-
-  showLoading(true, 'Preparing sketch…');
+  showLoading(true, 'Preparing your sketch…');
   hideError();
   if (aiPlaceholder) aiPlaceholder.style.display = 'none';
-  if (aiImagesGrid)  aiImagesGrid.innerHTML = '';
+  if (aiImgWrap)     aiImgWrap.style.display      = 'none';
+  if (btnStick)      btnStick.style.display        = 'none';
 
   try {
-    const images = [];
-    for (let i = 0; i < count; i++) {
-      showLoading(true, `Generating image ${i+1} of ${count}…`);
-      const imgBlob = await generateSketchToImage(sketchBase64, description, stylePrompt, token, hasContent);
-      if (imgBlob) images.push(imgBlob);
-    }
-
+    const imgUrl = await generateSketchToImage(sketchBase64, description, token, hasContent);
     showLoading(false);
-    if (images.length === 0) {
-      showError('Generation failed — model may be loading, please try again in 30 seconds.');
-      return;
-    }
-    displayImages(images);
+    if (!imgUrl) { showError('Generation failed — model may be loading, try again in 30 seconds.'); return; }
+
+    // Show result
+    aiResultImg.src     = imgUrl;
+    aiImgWrap.style.display  = '';
+    btnStick.style.display   = '';
+
+    // Store current generation data so "Stick it" can save it
+    btnStick._aiUrl       = imgUrl;
+    btnStick._sketchUrl   = drawCanvas.toDataURL('image/png');
+    btnStick._description = description;
+
   } catch(e) {
     showLoading(false);
-    showError(`Generation error: ${e.message}. Try again — model may be warming up.`);
+    showError(`Error: ${e.message}. Check your HF token and try again.`);
     console.error(e);
   }
 });
 
-/* Core generation function: tries img2img first, falls back to text2img */
-async function generateSketchToImage(sketchBase64, description, stylePrompt, token, hasContent) {
+async function generateSketchToImage(sketchBase64, description, token, hasContent) {
+  /* Build a realistic prompt. Description is ADDTIONAL info, sketch is the primary guide. */
+  const basePrompt = 'photorealistic, ultra-detailed, sharp focus, 8k, professional photography, high quality';
   const fullPrompt = description
-    ? `${description}, ${stylePrompt}, preserving the composition and shapes of the original sketch`
-    : `${stylePrompt}, detailed and high quality`;
+    ? `${description}, ${basePrompt}`
+    : basePrompt;
 
-  // === Method 1: instruct-pix2pix (best for sketch-to-image) ===
+  /* === Method 1: instruct-pix2pix (best sketch-to-image, free tier) === */
   if (hasContent) {
     try {
       showLoading(true, 'Sending sketch to AI (img2img)…');
       const res = await fetchWithTimeout(
         'https://api-inference.huggingface.co/models/timbrooks/instruct-pix2pix',
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'x-use-cache': 'false',
-          },
-          body: JSON.stringify({
-            inputs: `Make this sketch into a ${description || 'detailed artwork'}. Style: ${stylePrompt}`,
-            parameters: {
+          method:'POST',
+          headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', 'x-use-cache':'false' },
+          body:JSON.stringify({
+            inputs: description
+              ? `Turn this sketch into a realistic image of ${description}`
+              : 'Turn this sketch into a photorealistic image',
+            parameters:{
               image: sketchBase64,
-              num_inference_steps: 20,
-              image_guidance_scale: 1.8,   // high = preserve sketch structure
+              num_inference_steps: 25,
+              image_guidance_scale: 1.8,
               guidance_scale: 7.5,
               negative_prompt: NEGATIVE_PROMPT,
             },
-            options: { wait_for_model: true, use_cache: false }
+            options:{ wait_for_model:true, use_cache:false }
           })
         },
-        90000  // 90 second timeout
+        100000
       );
       if (res.ok) {
         const blob = await res.blob();
-        if (blob.type.startsWith('image/')) return URL.createObjectURL(blob);
+        if (blob.type?.startsWith('image/')) return URL.createObjectURL(blob);
       }
-      const errText = await res.text().catch(() => '');
+      const errText = await res.text().catch(()=>'');
       console.warn('pix2pix failed:', res.status, errText);
-    } catch(e) {
-      console.warn('pix2pix exception:', e.message);
-    }
+    } catch(e) { console.warn('pix2pix exception:', e.message); }
   }
 
-  // === Method 2: ControlNet scribble (great sketch fidelity) ===
+  /* === Method 2: ControlNet scribble (preserves sketch shapes) === */
   if (hasContent) {
     try {
       showLoading(true, 'Trying ControlNet sketch model…');
       const res = await fetchWithTimeout(
         'https://api-inference.huggingface.co/models/lllyasviel/sd-controlnet-scribble',
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'x-use-cache': 'false',
-          },
-          body: JSON.stringify({
+          method:'POST',
+          headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', 'x-use-cache':'false' },
+          body:JSON.stringify({
             inputs: fullPrompt,
-            parameters: {
+            parameters:{
               image: sketchBase64,
-              num_inference_steps: 20,
-              guidance_scale: 8,
+              num_inference_steps: 25,
+              guidance_scale: 9,
               negative_prompt: NEGATIVE_PROMPT,
-              controlnet_conditioning_scale: 0.9,
+              controlnet_conditioning_scale: 0.95,
             },
-            options: { wait_for_model: true, use_cache: false }
+            options:{ wait_for_model:true, use_cache:false }
           })
         },
-        90000
+        100000
       );
       if (res.ok) {
         const blob = await res.blob();
-        if (blob.type.startsWith('image/')) return URL.createObjectURL(blob);
+        if (blob.type?.startsWith('image/')) return URL.createObjectURL(blob);
       }
-    } catch(e) {
-      console.warn('ControlNet exception:', e.message);
-    }
+    } catch(e) { console.warn('ControlNet exception:', e.message); }
   }
 
-  // === Method 3: SDXL text-to-image with sketch-describing prompt ===
-  // Analyse sketch colour and build rich prompt
-  showLoading(true, 'Generating from description…');
+  /* === Method 3: SDXL text-to-image with sketch analysis === */
+  showLoading(true, 'Generating from your sketch description…');
   const sketchAnalysis = hasContent ? describeSketch(drawCanvas) : '';
   const enrichedPrompt = [sketchAnalysis, fullPrompt].filter(Boolean).join(', ');
 
@@ -819,75 +667,57 @@ async function generateSketchToImage(sketchBase64, description, stylePrompt, tok
       const res = await fetchWithTimeout(
         `https://api-inference.huggingface.co/models/${model}`,
         {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'x-use-cache': 'false',
-          },
-          body: JSON.stringify({
+          method:'POST',
+          headers:{ 'Authorization':`Bearer ${token}`, 'Content-Type':'application/json', 'x-use-cache':'false' },
+          body:JSON.stringify({
             inputs: enrichedPrompt,
-            parameters: {
-              num_inference_steps: 25,
-              guidance_scale: 8,
-              negative_prompt: NEGATIVE_PROMPT,
-            },
-            options: { wait_for_model: true, use_cache: false }
+            parameters:{ num_inference_steps:28, guidance_scale:9, negative_prompt:NEGATIVE_PROMPT },
+            options:{ wait_for_model:true, use_cache:false }
           })
         },
         120000
       );
       if (res.ok) {
         const blob = await res.blob();
-        if (blob.type.startsWith('image/')) return URL.createObjectURL(blob);
+        if (blob.type?.startsWith('image/')) return URL.createObjectURL(blob);
       }
-      const errText = await res.text().catch(() => '');
-      console.warn(`${model} failed:`, res.status, errText);
-    } catch(e) {
-      console.warn(`${model} exception:`, e.message);
-    }
+      console.warn(`${model} failed:`, res.status);
+    } catch(e) { console.warn(`${model} exception:`, e.message); }
   }
 
-  throw new Error('All generation methods failed. Please check your HF token and try again.');
+  throw new Error('All generation methods failed. Please check your HF token and try again in 30 seconds.');
 }
 
-/* Check if canvas has any non-white, non-transparent pixels */
+/* Check if canvas has drawn content */
 function hasDrawing(canvas) {
-  const d = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
-  for (let i = 3; i < d.length; i += 4) { if (d[i] > 10) return true; }
+  const d = canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+  for (let i=3;i<d.length;i+=4) { if(d[i]>10) return true; }
   return false;
 }
 
-/* Rough sketch description from canvas pixel data */
+/* Analyse sketch colours for a descriptive hint */
 function describeSketch(canvas) {
   const ctx = canvas.getContext('2d');
-  const d   = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const d   = ctx.getImageData(0,0,canvas.width,canvas.height).data;
   const counts = {};
-  for (let i = 0; i < d.length; i += 16) {
-    if (d[i+3] < 10) continue;
-    const r = Math.round(d[i]/64)*64, g = Math.round(d[i+1]/64)*64, b = Math.round(d[i+2]/64)*64;
-    const key = `${r},${g},${b}`;
-    counts[key] = (counts[key]||0)+1;
+  for (let i=0;i<d.length;i+=16) {
+    if (d[i+3]<10) continue;
+    const r=Math.round(d[i]/64)*64, g=Math.round(d[i+1]/64)*64, b=Math.round(d[i+2]/64)*64;
+    const key=`${r},${g},${b}`; counts[key]=(counts[key]||0)+1;
   }
   const topColors = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,3);
   if (!topColors.length) return '';
-  const colorNames = topColors.map(([k]) => {
-    const [r,g,b] = k.split(',').map(Number);
-    if (r>180 && g<80 && b<80) return 'red';
-    if (r<80 && g>180 && b<80) return 'green';
-    if (r<80 && g<80 && b>180) return 'blue';
-    if (r>180 && g>180 && b<80) return 'yellow';
-    if (r>180 && g<80 && b>180) return 'purple';
-    if (r<80 && g>180 && b>180) return 'cyan';
-    if (r>180 && g>120 && b<80) return 'orange';
-    if (r>180 && g>180 && b>180) return 'white';
-    if (r<80 && g<80 && b<80)   return 'black';
-    return 'colorful';
-  }).filter((v,i,a)=>a.indexOf(v)===i);
-  return `with ${colorNames.join(' and ')} colors`;
+  const names = topColors.map(([k]) => {
+    const [r,g,b]=k.split(',').map(Number);
+    if(r>180&&g<80&&b<80) return 'red'; if(r<80&&g>180&&b<80) return 'green';
+    if(r<80&&g<80&&b>180) return 'blue'; if(r>180&&g>180&&b<80) return 'yellow';
+    if(r>180&&g<80&&b>180) return 'purple'; if(r<80&&g>180&&b>180) return 'cyan';
+    if(r>180&&g>120&&b<80) return 'orange'; if(r>180&&g>180&&b>180) return 'white';
+    if(r<80&&g<80&&b<80) return 'black'; return null;
+  }).filter(Boolean).filter((v,i,a)=>a.indexOf(v)===i);
+  return names.length ? `with ${names.join(' and ')} tones` : '';
 }
 
-/* Timeout-aware fetch */
 function fetchWithTimeout(url, opts, ms) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('Request timed out')), ms);
@@ -896,50 +726,84 @@ function fetchWithTimeout(url, opts, ms) {
   });
 }
 
-/* ── Display images ── */
-function displayImages(blobUrls) {
-  if (!aiImagesGrid) return;
-  aiImagesGrid.innerHTML = '';
-  blobUrls.forEach((url, i) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'ai-img-wrap';
-    const img = document.createElement('img');
-    img.src = url;
-    img.alt = `Generated image ${i+1}`;
-    const saveBtn = document.createElement('button');
-    saveBtn.className = 'ai-img-save';
-    saveBtn.textContent = '⬇ Save';
-    saveBtn.addEventListener('click', () => {
-      const a = document.createElement('a');
-      a.href = url; a.download = `airbrush-ai-${Date.now()}.png`; a.click();
-    });
-    wrap.appendChild(img); wrap.appendChild(saveBtn);
-    aiImagesGrid.appendChild(wrap);
+/* ─── STICK IT ON ART WALL ───────────────────────────────────── */
+btnStick?.addEventListener('click', () => {
+  const aiUrl      = btnStick._aiUrl;
+  const sketchUrl  = btnStick._sketchUrl;
+  const description= btnStick._description || '';
+  if (!aiUrl) return;
 
-    // Save to gallery
-    img.onload = () => saveToGallery(url);
-  });
-}
-
-/* ── Gallery ── */
-function saveToGallery(url) {
   try {
-    const g = JSON.parse(localStorage.getItem('ab_gallery') || '[]');
-    g.unshift({ url, ts: Date.now() });
-    if (g.length > 50) g.length = 50;
-    localStorage.setItem('ab_gallery', JSON.stringify(g));
-  } catch {}
+    const gallery = JSON.parse(localStorage.getItem('ab_gallery') || '[]');
+    gallery.unshift({ aiUrl, sketchUrl, description, ts: Date.now() });
+    if (gallery.length > 50) gallery.length = 50;
+    localStorage.setItem('ab_gallery', JSON.stringify(gallery));
+    flash('📌 Stuck on your Art Wall!');
+    btnStick.textContent = '✅ Added to Art Wall';
+    btnStick.disabled = true;
+    setTimeout(() => { btnStick.textContent='📌 Stick it on your Art Wall'; btnStick.disabled=false; }, 3000);
+  } catch(e) { flash('Could not save to gallery'); }
+});
+
+/* ─── UI HELPERS ─────────────────────────────────────────────── */
+function showLoading(on, msg) {
+  if (aiLoading)     aiLoading.style.display   = on ? 'flex' : 'none';
+  if (aiLoadingText) aiLoadingText.textContent  = msg || 'Generating…';
+  if (btnGenerate)   btnGenerate.disabled       = on;
+}
+function showError(msg) { if(aiError){ aiError.textContent=msg; aiError.style.display=''; } }
+function hideError()    { if(aiError) aiError.style.display='none'; }
+
+/* ─── GALLERY ────────────────────────────────────────────────── */
+const galleryModal      = document.getElementById('gallery-modal');
+const galleryGrid       = document.getElementById('gallery-grid');
+const galleryEmpty      = document.getElementById('gallery-empty');
+const galleryClose      = document.getElementById('gallery-close');
+const galleryDetailModal= document.getElementById('gallery-detail-modal');
+const galleryDetailClose= document.getElementById('gallery-detail-close');
+const detailAiImg       = document.getElementById('detail-ai-img');
+const detailSketchImg   = document.getElementById('detail-sketch-img');
+const detailDesc        = document.getElementById('detail-desc');
+const btnOpenGallery    = document.getElementById('btn-open-gallery');
+
+function openGallery() {
+  if (!galleryModal || !galleryGrid) return;
+  const items = JSON.parse(localStorage.getItem('ab_gallery') || '[]');
+  galleryGrid.innerHTML = '';
+  if (!items.length) {
+    galleryGrid.innerHTML = '<div class="gallery-empty">No images yet — generate some AI art and stick it here!</div>';
+  } else {
+    items.forEach((item, idx) => {
+      const div = document.createElement('div');
+      div.className = 'gallery-item';
+      const img = document.createElement('img');
+      img.src = item.aiUrl || '';
+      img.alt = item.description || `Art ${idx+1}`;
+      div.appendChild(img);
+      div.addEventListener('click', () => openGalleryDetail(item));
+      galleryGrid.appendChild(div);
+    });
+  }
+  galleryModal.style.display = 'flex';
 }
 
-/* ── UI helpers ── */
-function showLoading(on, msg) {
-  if (aiLoading)     aiLoading.style.display     = on ? 'flex' : 'none';
-  if (aiLoadingText) aiLoadingText.textContent    = msg || 'Generating…';
-  if (btnGenerate)   btnGenerate.disabled         = on;
+function openGalleryDetail(item) {
+  if (!galleryDetailModal) return;
+  detailAiImg.src     = item.aiUrl    || '';
+  detailSketchImg.src = item.sketchUrl || '';
+  if (item.description) {
+    detailDesc.textContent   = `Description: ${item.description}`;
+    detailDesc.style.display = '';
+  } else {
+    detailDesc.style.display = 'none';
+  }
+  galleryDetailModal.style.display = 'flex';
 }
-function showError(msg) {
-  if (aiError) { aiError.textContent = msg; aiError.style.display = ''; }
-}
-function hideError() {
-  if (aiError) aiError.style.display = 'none';
-}
+
+btnOpenGallery?.addEventListener('click', openGallery);
+galleryClose?.addEventListener('click',       () => { galleryModal.style.display      = 'none'; });
+galleryDetailClose?.addEventListener('click', () => { galleryDetailModal.style.display = 'none'; });
+
+// Close modals on backdrop click
+galleryModal?.addEventListener('click', e => { if(e.target===galleryModal) galleryModal.style.display='none'; });
+galleryDetailModal?.addEventListener('click', e => { if(e.target===galleryDetailModal) galleryDetailModal.style.display='none'; });
