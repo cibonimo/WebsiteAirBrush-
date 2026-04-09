@@ -4,7 +4,7 @@
 
 // ── Auth state ──────────────────────────────
 function isLoggedIn() {
-  return !!localStorage.getItem('airbrush_user');
+  return !!localStorage.getItem('ab_current');
 }
 
 // ── Navbar: update based on login state ─────
@@ -17,7 +17,7 @@ function updateNavAuth() {
     loginBtn.href         = 'canvas.html';
     signupBtn.textContent = 'Log Out';
     signupBtn.href        = '#';
-    signupBtn.onclick     = () => { localStorage.removeItem('airbrush_user'); location.reload(); };
+    signupBtn.onclick     = () => { localStorage.removeItem('ab_current'); location.reload(); };
   }
 }
 updateNavAuth();
@@ -205,3 +205,11 @@ window.addEventListener('load', () => {
 window.addEventListener('scroll', () => {
   document.getElementById('navbar')?.classList.toggle('scrolled', scrollY > 40);
 });
+
+// ── Hero scroll hint ────────────────────────
+const scrollHint = document.querySelector('.hero-scroll-hint');
+if (scrollHint) {
+  window.addEventListener('scroll', () => {
+    scrollHint.style.opacity = scrollY > 60 ? '0' : '1';
+  });
+}
