@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Log In — AirBrush</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card">
+    <h2>Welcome back</h2>
+    <p>Log in to your Airbrush account.</p>
+
+    <div class="auth-method-tabs">
+      <button class="auth-method-btn active" data-method="email">📧 Email</button>
+      <button class="auth-method-btn" data-method="pattern">🔷 Air Pattern</button>
+      <button class="auth-method-btn" data-method="pin">🔢 Air PIN</button>
+    </div>
+
+    <!-- Email Login -->
+    <div id="method-email">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="li-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="li-password" placeholder="Your password"/>
+      </div>
+      <button class="btn-submit" id="email-login-btn">Log In</button>
+    </div>
+
+    <!-- Pattern Login -->
+    <div id="method-pattern" style="display:none;">
+      <p class="gesture-instruction">Draw your registered pattern in the air.</p>
+      <div class="gesture-webcam-box" id="pattern-webcam-box">
+        <video id="pattern-video" autoplay muted playsinline></video>
+        <canvas id="pattern-canvas"></canvas>
+      </div>
+      <button class="btn-submit" id="pattern-login-btn">Start Camera & Verify Pattern</button>
+    </div>
+
+    <!-- PIN Login -->
+    <div id="method-pin" style="display:none;">
+      <p class="gesture-instruction">Enter your 4-digit PIN using hand gestures.</p>
+      <div class="gesture-webcam-box" id="pin-webcam-box">
+        <video id="pin-video" autoplay muted playsinline></video>
+        <canvas id="pin-canvas"></canvas>
+      </div>
+      <div id="pin-display" style="text-align:center;font-size:2rem;letter-spacing:1rem;margin:1rem 0;color:var(--accent2);">_ _ _ _</div>
+      <button class="btn-submit" id="pin-login-btn">Start Camera & Enter PIN</button>
+    </div>
+
+    <p style="text-align:center;color:var(--text-muted);font-size:0.85rem;margin-top:1.5rem;">
+      New here? <a href="signup.html" style="color:var(--accent2);">Create Account</a>
+    </p>
+  </div>
+</div>
+<script src="js/auth.js"></script>
+</body>
+</html>
