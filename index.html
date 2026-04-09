@@ -12,15 +12,18 @@
   h1, h2, h3, .hero-title, .section-title, .logo-text {
     font-family: 'Calibri Light', Calibri, Syne, sans-serif !important;
   }
+  .hero-badge { display: none; }
+  .hero-sub { display: none; }
+  .hero-content { gap: 2.5rem; display: flex; flex-direction: column; align-items: center; }
+  .hero-title { margin-bottom: 0.5rem; }
+  .hero-cta { margin-top: 1rem; gap: 1.25rem; }
 </style>
 </head>
 <body>
 <!-- PARTICLES BACKGROUND -->
 <canvas id="particles-canvas"></canvas>
 
-<!-- ═══════════════════════════════════════════
-     NAVBAR
-═══════════════════════════════════════════ -->
+<!-- NAVBAR -->
 <nav class="navbar" id="navbar">
   <div class="nav-logo">
     <div class="logo-icon">
@@ -49,9 +52,7 @@
   </div>
 </nav>
 
-<!-- ═══════════════════════════════════════════
-     HERO SECTION
-═══════════════════════════════════════════ -->
+<!-- HERO SECTION -->
 <section class="hero" id="hero">
   <div class="hero-video-wrap">
     <video autoplay muted loop playsinline id="hero-video">
@@ -60,27 +61,20 @@
     <div class="hero-overlay"></div>
   </div>
   <div class="hero-content">
-    <div class="hero-badge reveal">✦ Final Year Project 2025</div>
     <h1 class="hero-title reveal">
       The future of art<br/>
       is in your hands —<br/>
       <span class="grad-text">literally.</span>
     </h1>
-    <p class="hero-sub reveal">
-      Draw in mid-air using hand gestures via webcam.<br/>
-      Let AI transform your sketches into breathtaking visuals.
-    </p>
     <div class="hero-cta reveal">
-      <a href="signup.html" class="btn-primary">Start Drawing Free</a>
+      <a href="signup.html" class="btn-primary">Start Drawing</a>
       <a href="#how-it-works" class="btn-ghost">See How It Works ↓</a>
     </div>
   </div>
   <div class="hero-scroll-hint">scroll</div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     HOW IT WORKS
-═══════════════════════════════════════════ -->
+<!-- HOW IT WORKS -->
 <section class="section how-it-works" id="how-it-works">
   <div class="container">
     <div class="section-label reveal">How It Works</div>
@@ -110,9 +104,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     VISION SECTION
-═══════════════════════════════════════════ -->
+<!-- VISION SECTION -->
 <section class="section vision" id="vision">
   <div class="container vision-inner">
     <div class="vision-left reveal">
@@ -127,15 +119,13 @@
         Using just a webcam and the natural movement of your fingers, AirBrush transforms mid-air gestures into real drawings — and then takes it further, using artificial intelligence to turn those rough sketches into fully realized, photorealistic imagery.
       </p>
       <p class="vision-para">
-        But AirBrush isn't just about drawing. It reimagines how humans interact with technology — replacing passwords and PINs with gestures, signatures, and faces. It's a vision of computing that's more human, more expressive, and more intuitive. We built AirBrush because we believe the most powerful interface is one you already know how to use: <em>your own body.</em>
+        But AirBrush isn't just about drawing. It reimagines how humans interact with technology — replacing complex inputs with gestures and natural movement. It's a vision of computing that's more human, more expressive, and more intuitive. We built AirBrush because we believe the most powerful interface is one you already know how to use: <em>your own body.</em>
       </p>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     FEATURES SECTION
-═══════════════════════════════════════════ -->
+<!-- FEATURES SECTION -->
 <section class="section features" id="features">
   <div class="container">
     <div class="section-label reveal">Features</div>
@@ -166,46 +156,19 @@
         <div class="feature-card reveal">
           <div class="feature-icon">↩️</div>
           <h3>Gesture Controls</h3>
-          <p>Shake your fist to clear. Raise two fingers to erase. Open palm to pause. Edit your canvas without touching anything.</p>
+          <p>Raise two fingers to erase. Open palm to pause. Edit your canvas without touching anything.</p>
         </div>
         <div class="feature-card reveal">
           <div class="feature-icon">🎨</div>
           <h3>Full Toolkit</h3>
-          <p>Colour picker, brush size control, eraser, undo, and clear — all neatly organised in one side panel.</p>
-        </div>
-      </div>
-    </div>
-    <div class="features-group" style="margin-top: 4rem;">
-      <p class="features-group-label reveal">✦ Authentication System</p>
-      <div class="features-grid features-grid-4">
-        <div class="feature-card reveal auth-card">
-          <div class="feature-icon">✍️</div>
-          <h3>Signature Auth</h3>
-          <p>Register and log in by drawing your unique air signature — tracked by your webcam.</p>
-        </div>
-        <div class="feature-card reveal auth-card">
-          <div class="feature-icon">🔢</div>
-          <h3>Finger PIN</h3>
-          <p>Set a 4-digit PIN using raised fingers. Each digit is auto-detected after a 2-second stable hold.</p>
-        </div>
-        <div class="feature-card reveal auth-card">
-          <div class="feature-icon">🔷</div>
-          <h3>Pattern Auth</h3>
-          <p>Draw a custom gesture pattern as your password — traced through the air.</p>
-        </div>
-        <div class="feature-card reveal auth-card">
-          <div class="feature-icon">👤</div>
-          <h3>Face Recognition 2FA</h3>
-          <p>Every login is paired with facial recognition for dual-layer biometric security.</p>
+          <p>Colour picker, brush size control, eraser, undo, redo, and clear — all neatly organised in one side panel.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     GALLERY SECTION
-═══════════════════════════════════════════ -->
+<!-- GALLERY SECTION -->
 <section class="section future" id="gallery-section">
   <div class="container">
     <div class="section-label reveal">Gallery</div>
@@ -217,9 +180,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     FUTURE SCOPE
-═══════════════════════════════════════════ -->
+<!-- FUTURE SCOPE -->
 <section class="section future" id="future">
   <div class="container">
     <div class="section-label reveal">What's Coming</div>
@@ -259,16 +220,13 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     TECH STACK
-═══════════════════════════════════════════ -->
+<!-- TECH STACK -->
 <section class="section techstack" id="tech">
   <div class="container">
     <div class="section-label reveal">Built With</div>
     <h2 class="section-title reveal">The tech<br/><span class="grad-text">behind the magic.</span></h2>
     <div class="tech-grid">
       <div class="tech-pill reveal">MediaPipe Hands</div>
-      <div class="tech-pill reveal">face-api.js</div>
       <div class="tech-pill reveal">Web Speech API</div>
       <div class="tech-pill reveal">Hugging Face API</div>
       <div class="tech-pill reveal">HTML5 Canvas</div>
@@ -280,9 +238,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════
-     FOOTER
-═══════════════════════════════════════════ -->
+<!-- FOOTER -->
 <footer class="footer">
   <div class="container footer-inner">
     <div class="footer-brand">
@@ -329,7 +285,6 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <p>Final Year Project — B.E. Computer Engineering · Batch 2025</p>
     <p>Built with ♥ by <strong>Vaibhav</strong> · AirBrush © 2025</p>
   </div>
 </footer>
