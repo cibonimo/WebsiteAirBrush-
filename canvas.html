@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Draw — AirBrush</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<!-- Auth guard -->
+<script>
+  if (!localStorage.getItem('airbrush_session')) {
+    window.location.href = 'login.html';
+  }
+</script>
+
+<!-- Minimal Navbar -->
+<nav class="navbar" style="position:relative;padding:0.75rem 1.5rem;">
+  <div class="nav-logo"><span class="logo-text">Airbrush</span></div>
+  <div class="nav-actions">
+    <a href="index.html" class="btn-nav-ghost">← Home</a>
+    <button class="btn-nav-ghost" onclick="localStorage.removeItem('airbrush_session');window.location.href='login.html'">Log Out</button>
+  </div>
+</nav>
+
+<div class="app-layout">
+
+  <!-- LEFT SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- 1. Input Mode -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Input Mode</div>
+      <div class="toggle-group">
+        <button class="toggle-btn active" id="mode-air">✋ Air Draw</button>
+        <button class="toggle-btn" id="mode-mouse">🖱️ Mouse</button>
+      </div>
+    </div>
+
+    <!-- 2. Tools -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Tools</div>
+      <button class="tool-btn active" id="tool-brush">🖌️ Brush</button>
+      <button class="tool-btn" id="tool-eraser">🧹 Eraser</button>
+    </div>
+
+    <!-- 3. Brush Size -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Brush Size: <span id="brush-size-label">5</span>px</div>
+      <input type="range" id="brush-size" min="2" max="40" value="5"/>
+    </div>
+
+    <!-- 4. Colour Palette -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Colour</div>
+      <input type="color" id="colour-picker" value="#7C3AED" style="width:100%;height:36px;border-radius:8px;border:1px solid var(--border);background:transparent;cursor:pointer;"/>
+      <div class="colour-palette" id="preset-colours">
+        <!-- presets injected by JS -->
+      </div>
+    </div>
+
+    <!-- 5. Start / Stop -->
+    <div class="sidebar-section">
+      <button class="start-stop-btn start" id="start-stop-btn">▶ Start</button>
+    </div>
+
+    <!-- 6. Gesture Legend -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">Gesture Legend</div>
+      <div class="gesture-legend">
+        <table>
+          <tr><td>☝️</td><td>Index finger — Draw</td></tr>
+          <tr><td>✌️</td><td>Index + Middle — Erase</td></tr>
+          <tr><td>🖐️</td><td>Open palm — Pause</td></tr>
+          <tr><td>✊</td><td>Fist + shake — Clear</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- 7. Undo / Clear -->
+    <div class="sidebar-section">
+      <div class="action-row">
+        <button id="undo-btn">↩ Undo</button>
+        <button id="clear-btn">🗑 Clear</button>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN AREA -->
+  <main class="app-main">
+
+    <!-- Drawing Area -->
+    <div class="drawing-area">
+      <div class="webcam-window">
+        <div class="window-label">Live Camera</div>
+        <video id="webcam-feed" autoplay muted playsinline></video>
+        <canvas id="webcam-overlay"></canvas>
+      </div>
+      <div class="canvas-window">
+        <div class="window-label">Your Canvas</div>
+        <canvas id="drawing-canvas"></canvas>
+      </div>
+    </div>
+
+    <button class="done-drawing-btn" id="done-drawing-btn">Done Drawing ↓</button>
+
+    <!-- GENERATION SECTION -->
+    <div class="generation-section" id="generation-section">
+
+      <!-- Controls -->
+      <div class="gen-controls">
+        <h3>🎨 Generation Controls</h3>
+
+        <div>
+          <div class="sidebar-label">Style</div>
+          <div class="style-grid">
+            <button class="style-btn active" data-style="Realistic">Realistic</button>
+            <button class="style-btn" data-style="Creative">Creative</button>
+            <button class="style-btn" data-style="Dynamic">Dynamic</button>
+            <button class="style-btn" data-style="Portrait">Portrait</button>
+            <button class="style-btn" data-style="Stock Photo">Stock Photo</button>
+            <button class="style-btn" data-style="Watercolour">Watercolour</button>
+            <button class="style-btn" data-style="Black & White">Black & White</button>
+            <button class="style-btn" data-style="Vibrant">Vibrant</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="sidebar-label">Number of Images</div>
+          <div class="gen-count-btns">
+            <button class="gen-count-btn active" data-count="1">1</button>
+            <button class="gen-count-btn" data-count="2">2</button>
+            <button class="gen-count-btn" data-count="3">3</button>
+          </div>
+        </div>
+
+        <div>
+          <div class="sidebar-label">Description (optional)</div>
+          <div class="desc-row">
+            <textarea id="gen-description" placeholder="e.g. pink flower on blue background..."></textarea>
+            <button class="mic-btn" id="mic-btn" title="Voice input">🎙️</button>
+          </div>
+        </div>
+
+        <button class="generate-btn" id="generate-btn">✨ Generate</button>
+        <div id="gen-status" style="color:var(--text-muted);font-size:0.85rem;text-align:center;"></div>
+      </div>
+
+      <!-- Results -->
+      <div class="gen-results">
+        <h3>Generated Images</h3>
+        <div class="gen-images-grid count-1" id="gen-images-grid">
+          <div class="gen-img-wrap" id="gen-placeholder">Generated images will appear here</div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+<script src="js/canvas.js"></script>
+</body>
+</html>
