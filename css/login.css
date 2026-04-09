@@ -1,0 +1,132 @@
+/* ═══════════════════════════════════════════
+   AIRBRUSH — login.css
+   Extra styles layered on top of signup.css
+═══════════════════════════════════════════ */
+
+/* ── Email lookup divider ────────────────── */
+.login-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  font-size: 0.88rem;
+  color: var(--text-3);
+}
+.login-divider a {
+  color: var(--cyan);
+  font-weight: 500;
+  transition: var(--transition);
+}
+.login-divider a:hover { color: #fff; }
+
+/* ── Method badge shown after email lookup ─ */
+.method-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 1rem;
+  border-radius: 50px;
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.3);
+  font-size: 0.85rem;
+  color: var(--text-1);
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+/* ── Face verification badge ─────────────── */
+.face-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.6rem 1.1rem;
+  border-radius: 50px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+  font-size: 0.85rem;
+  color: var(--text-2);
+  margin-bottom: 1rem;
+  transition: var(--transition);
+}
+.face-badge.checking {
+  border-color: rgba(245,158,11,0.35);
+  background: rgba(245,158,11,0.05);
+  color: #F59E0B;
+}
+.face-badge.pass {
+  border-color: rgba(16,185,129,0.35);
+  background: rgba(16,185,129,0.07);
+  color: #10B981;
+}
+.face-badge.fail {
+  border-color: rgba(239,68,68,0.35);
+  background: rgba(239,68,68,0.07);
+  color: #EF4444;
+}
+
+/* ── Success animation ────────────────────── */
+.success-anim {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  margin: 0 auto;
+}
+.success-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-color: var(--violet);
+  border-right-color: var(--cyan);
+  animation: spin-ring 0.7s ease-out forwards;
+  background: transparent;
+}
+.success-check {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  color: #10B981;
+  animation: pop-in 0.4s 0.5s both;
+}
+@keyframes spin-ring {
+  from { transform: rotate(0deg); opacity: 0; }
+  to   { transform: rotate(360deg); opacity: 1; border-color: rgba(16,185,129,0.4); }
+}
+@keyframes pop-in {
+  from { transform: scale(0); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Redirect progress bar ────────────────── */
+.redirect-bar {
+  margin-top: 2rem;
+  height: 3px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.redirect-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--violet), var(--cyan));
+  border-radius: 2px;
+  transition: width 2.2s linear;
+}
+
+/* ── Fail icon ───────────────────────────── */
+.fail-icon {
+  font-size: 3.5rem;
+  margin-bottom: 1rem;
+}
+
+/* ── Face badge at top of card (login fix) ── */
+.face-badge-top {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  width: 100%;
+  box-sizing: border-box;
+}
