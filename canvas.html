@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Canvas — AirBrush</title>
+<link rel="stylesheet" href="css/style.css"/>
+<link rel="stylesheet" href="css/canvas.css"/>
+<!-- MediaPipe -->
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+<style>
+  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
+
+  #particles-canvas {
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;z-index:0;
+  }
+  .canvas-body { background:#000 !important; }
+  .canvas-nav, .canvas-layout, .left-panel, .cam-panel, .right-panel,
+  .draw-section, .gen-section { position:relative; z-index:1; }
+
+  /* Selfie-style webcam */
+  #webcam { transform: scaleX(-1); }
+  #overlay-canvas { transform: scaleX(-1); pointer-events:none; }
+  #cam-trace-canvas {
+    position:absolute;top:0;left:0;width:100%;height:100%;
+    pointer-events:none;
+    transform:scaleX(-1);
+    z-index:1;
+  }
+  #overlay-canvas { z-index:2; }
+
+  /* ── LEFT PANEL refinements ── */
+  .left-panel {
+    width: 200px !important;
+    padding: 1rem 0.85rem !important;
+    gap: 0;
+  }
+  .panel-section {
+    padding: 0.8rem 0 !important;
+    border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  }
+  .panel-section:last-child { border-bottom: none !important; }
+  .panel-label {
+    font-size: 0.7rem !important;
+    letter-spacing: 0.14em !important;
+    margin-bottom: 0.55rem !important;
+    color: rgba(255,255,255,0.4) !important;
+  }
+
+  /* Mode buttons */
+  .mode-btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    border-radius: 9px !important;
+    margin-bottom: 0;
+  }
+  .mode-toggle { gap: 0.35rem !important; }
+
+  /* Tool buttons */
+  .tool-btn {
+    padding: 0.5rem 0.5rem !important;
+    font-size: 0.83rem !important;
+    border-radius: 9px !important;
+  }
+  .tool-row { gap: 0.35rem !important; }
+
+  /* Brush size */
+  .slider { height: 4px !important; }
+
+  /* Swatches — 12 colours in a 6-col grid */
+  .swatch-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, 1fr) !important;
+    gap: 0.38rem !important;
+    margin-bottom: 0.55rem !important;
+  }
+  .swatch {
+    aspect-ratio: 1 !important;
+    border-radius: 6px !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Action buttons */
+  .action-btn {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.85rem !important;
+    border-radius: 9px !important;
+  }
+  .action-stack { gap: 0.35rem !important; }
+
+  /* Undo/Redo/Clear row */
+  .history-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0.35rem;
+  }
+  .history-btn {
+    padding: 0.45rem 0.3rem;
+    border-radius: 9px;
+    border: 1px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.75rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+  .history-btn:hover:not(:disabled) {
+    border-color: rgba(124,58,237,0.5);
+    color: #fff;
+    background: rgba(124,58,237,0.1);
+  }
+  .history-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Gesture guide items */
+  .gesture-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.78rem !important;
+    color: rgba(255,255,255,0.5) !important;
+    padding: 0.2rem 0;
+  }
+  .gesture-item span:first-child { font-size: 1rem; }
+  .gesture-list { gap: 0.35rem !important; }
+
+  /* ── Mic button ── */
+  .voice-btn { transition:all 0.2s; }
+  .voice-btn.listening {
+    background:rgba(239,68,68,0.25)!important;border-color:#ef4444!important;
+    animation:micPulse 1s infinite;
+  }
+  @keyframes micPulse {
+    0%,100%{ box-shadow:0 0 0 4px rgba(239,68,68,0.2),0 0 16px rgba(239,68,68,0.3); }
+    50%    { box-shadow:0 0 0 8px rgba(239,68,68,0.1),0 0 24px rgba(239,68,68,0.5); }
+  }
+  .interim-text { font-size:0.88rem;color:rgba(255,255,255,0.4);font-style:italic;margin-top:4px;min-height:1.2em;display:block; }
+
+  /* ── Generation section ── */
+  .gen-section {
+    background: rgba(255,255,255,0.02);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 2rem 2.5rem;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .gen-section h3 {
+    font-size: 1.3rem;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 1.5rem;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+  }
+  .desc-wrap {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1.25rem;
+  }
+  .ai-desc-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    color: #fff;
+    padding: 0.85rem 3rem 0.85rem 1rem;
+    font-size: 0.97rem;
+    resize: vertical;
+    outline: none;
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 80px;
+    line-height: 1.5;
+  }
+  .ai-desc-input:focus { border-color: rgba(124,58,237,0.5); }
+  .ai-desc-input::placeholder { color: rgba(255,255,255,0.28); }
+  .voice-btn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    border-radius: 8px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  /* HF token row */
+  .hf-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.25rem;
+    align-items: center;
+  }
+  .hf-row label { font-size: 0.88rem; color: rgba(255,255,255,0.45); white-space: nowrap; }
+  .hf-input {
+    flex: 1;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.93rem;
+    outline: none;
+  }
+  .hf-save {
+    background: rgba(124,58,237,0.25);
+    border: 1px solid rgba(124,58,237,0.4);
+    color: #fff;
+    border-radius: 10px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .btn-generate {
+    width: 100%;
+    background: linear-gradient(135deg, #7C3AED, #06B6D4);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 0.85rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s;
+    margin-bottom: 1.25rem;
+  }
+  .btn-generate:hover { opacity: 0.88; transform: translateY(-1px); }
+  .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  /* AI result */
+  .ai-result-area { margin-top: 0.5rem; }
+  .ai-loading { display:none;flex-direction:column;align-items:center;gap:0.85rem;padding:2.5rem;color:rgba(255,255,255,0.5);font-size:0.97rem; }
+  .ai-spinner { width:36px;height:36px;border:3px solid rgba(124,58,237,0.3);border-top-color:#7C3AED;border-radius:50%;animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .ai-img-wrap { position:relative;border-radius:12px;overflow:hidden;border:1px solid rgba(255,255,255,0.1);aspect-ratio:1;max-width:480px;margin:0 auto; }
+  .ai-img-wrap img { width:100%;height:100%;object-fit:cover; }
+  .ai-placeholder { text-align:center;padding:3rem 1rem;color:rgba(255,255,255,0.22);font-size:0.97rem; }
+  .ai-placeholder-icon { font-size:2.75rem;display:block;margin-bottom:0.6rem; }
+  .ai-error { background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:0.85rem 1rem;color:#ef4444;font-size:0.93rem;margin-top:0.5rem;display:none; }
+
+  .btn-stick {
+    width:100%;margin-top:0.85rem;
+    background:linear-gradient(135deg,#10B981,#06B6D4);color:#fff;
+    border:none;border-radius:12px;padding:0.85rem;font-size:1.05rem;font-weight:600;
+    cursor:pointer;transition:opacity 0.2s;display:none;
+  }
+  .btn-stick:hover { opacity:0.85; }
+
+  /* Done Drawing button */
+  .done-drawing-wrap {
+    text-align: center;
+    padding: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .btn-done {
+    background: linear-gradient(135deg, rgba(124,58,237,0.2), rgba(6,182,212,0.2));
+    border: 1px solid rgba(124,58,237,0.35);
+    color: #fff;
+    border-radius: 12px;
+    padding: 0.7rem 2rem;
+    font-size: 0.97rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-done:hover { background: linear-gradient(135deg, rgba(124,58,237,0.35), rgba(6,182,212,0.35)); border-color: rgba(124,58,237,0.6); }
+
+  /* Gesture indicator */
+  #gesture-indicator {
+    position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+    background:rgba(0,0,0,0.7);border-radius:20px;padding:5px 16px;
+    font-size:0.9rem;color:#fff;pointer-events:none;opacity:0;transition:opacity 0.3s;white-space:nowrap;
+  }
+  #gesture-indicator.visible { opacity:1; }
+
+  /* Gallery Modal */
+  .gallery-modal {
+    position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:1000;
+    display:flex;align-items:center;justify-content:center;padding:1rem;
+  }
+  .gallery-modal-inner {
+    background:#111118;border-radius:18px;border:1px solid rgba(255,255,255,0.1);
+    width:100%;max-width:900px;max-height:90vh;overflow-y:auto;
+    display:flex;flex-direction:column;
+  }
+  .gallery-modal-header {
+    display:flex;justify-content:space-between;align-items:center;
+    padding:1.1rem 1.5rem;border-bottom:1px solid rgba(255,255,255,0.08);
+    flex-shrink:0;
+  }
+  .gallery-modal-header h2 { font-size:1.2rem;color:#fff; }
+  .gallery-close {
+    background:rgba(255,255,255,0.08);border:none;color:#fff;
+    border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:1rem;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .gallery-grid {
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+    gap:0.85rem;padding:1.25rem;
+  }
+  .gallery-item {
+    border-radius:10px;overflow:hidden;cursor:pointer;
+    border:1px solid rgba(255,255,255,0.08);aspect-ratio:1;
+    transition:transform 0.2s,border-color 0.2s;
+  }
+  .gallery-item:hover { transform:scale(1.03);border-color:rgba(124,58,237,0.5); }
+  .gallery-item img { width:100%;height:100%;object-fit:cover; }
+  .gallery-empty { grid-column:1/-1;text-align:center;color:rgba(255,255,255,0.3);padding:3rem;font-size:0.97rem; }
+
+  /* Gallery Detail Modal */
+  .gallery-detail-modal {
+    position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:1100;
+    display:flex;align-items:center;justify-content:center;padding:1rem;
+  }
+  .gallery-detail-inner {
+    background:#111118;border-radius:18px;border:1px solid rgba(255,255,255,0.1);
+    width:100%;max-width:960px;max-height:90vh;overflow-y:auto;padding:1.5rem;
+  }
+  .gallery-detail-header {
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;
+  }
+  .gallery-detail-header h2 { font-size:1.25rem;color:#fff; }
+  .gallery-detail-grid { display:grid;grid-template-columns:1fr 1fr;gap:1.25rem; }
+  .gallery-detail-grid img { width:100%;border-radius:12px;border:1px solid rgba(255,255,255,0.1); }
+  .gallery-detail-label { color:rgba(255,255,255,0.45);font-size:0.85rem;margin-bottom:0.45rem; }
+  .gallery-detail-desc {
+    margin-top:1.25rem;background:rgba(255,255,255,0.04);
+    border-radius:10px;padding:0.85rem;color:rgba(255,255,255,0.65);font-size:0.97rem;
+  }
+  @media(max-width:600px) {
+    .gallery-detail-grid { grid-template-columns:1fr; }
+    .gen-section { padding: 1.25rem; }
+  }
+</style>
+</head>
+<body class="canvas-body">
+
+<!-- PARTICLES BACKGROUND -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="canvas-nav">
+  <a href="index.html" class="nav-logo">
+    <div class="logo-icon">
+      <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="15" stroke="url(#cnlg1)" stroke-width="1.5"/>
+        <path d="M8 22 Q12 10 16 14 Q20 18 24 8" stroke="url(#cnlg2)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="8" r="2.5" fill="url(#cnlg2)"/>
+        <defs>
+          <linearGradient id="cnlg1" x1="0" y1="0" x2="32" y2="32">
+            <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+          <linearGradient id="cnlg2" x1="8" y1="22" x2="24" y2="8">
+            <stop offset="0%" stop-color="#7C3AED"/><stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <span class="logo-text">AirBrush</span>
+  </a>
+  <div class="nav-center">
+    <div class="status-pill">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Click Start to begin</span>
+    </div>
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="nav-user">👤 Guest</span>
+    <button class="btn-nav-ghost" id="btn-open-gallery">🖼 Gallery</button>
+    <button class="btn-nav-ghost" id="btn-logout">Sign Out</button>
+  </div>
+</nav>
+
+<!-- 3-COLUMN LAYOUT -->
+<div class="canvas-layout">
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+
+    <div class="panel-section">
+      <div class="panel-label">Drawing Mode</div>
+      <div class="mode-toggle">
+        <button class="mode-btn active" id="btn-air-mode">✋ Air Draw</button>
+        <button class="mode-btn" id="btn-mouse-mode">🖱 Mouse Draw</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Tool</div>
+      <div class="tool-row">
+        <button class="tool-btn active" id="btn-brush">🖌 Brush</button>
+        <button class="tool-btn" id="btn-eraser">⬜ Eraser</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Brush Size</div>
+      <input type="range" id="brush-size" min="1" max="60" value="4" class="slider"/>
+      <div style="display:flex;justify-content:space-between;margin-top:0.3rem;">
+        <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">Small</span>
+        <span style="font-size:0.72rem;color:rgba(255,255,255,0.55);" id="size-label">4</span>
+        <span style="font-size:0.72rem;color:rgba(255,255,255,0.35);">Large</span>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Colours</div>
+      <div class="swatch-grid">
+        <div class="swatch active"  data-color="#7C3AED" style="background:#7C3AED" title="Purple"></div>
+        <div class="swatch" data-color="#06B6D4" style="background:#06B6D4" title="Cyan"></div>
+        <div class="swatch" data-color="#EC4899" style="background:#EC4899" title="Pink"></div>
+        <div class="swatch" data-color="#EF4444" style="background:#EF4444" title="Red"></div>
+        <div class="swatch" data-color="#F97316" style="background:#F97316" title="Orange"></div>
+        <div class="swatch" data-color="#F59E0B" style="background:#F59E0B" title="Yellow"></div>
+        <div class="swatch" data-color="#10B981" style="background:#10B981" title="Green"></div>
+        <div class="swatch" data-color="#3B82F6" style="background:#3B82F6" title="Blue"></div>
+        <div class="swatch" data-color="#8B5CF6" style="background:#8B5CF6" title="Violet"></div>
+        <div class="swatch" data-color="#F472B6" style="background:#F472B6" title="Light Pink"></div>
+        <div class="swatch" data-color="#ffffff" style="background:#fff;border:1px solid rgba(255,255,255,0.2)" title="White"></div>
+        <div class="swatch" data-color="#000000" style="background:#111;border:1px solid rgba(255,255,255,0.15)" title="Black"></div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Controls</div>
+      <div class="action-stack">
+        <button class="action-btn green" id="btn-start">▶ Start</button>
+        <button class="action-btn red" id="btn-stop" disabled>■ Stop</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-label">Edit</div>
+      <div class="history-row">
+        <button class="history-btn" id="btn-undo" title="Undo">↩ Undo</button>
+        <button class="history-btn" id="btn-redo" title="Redo">↪ Redo</button>
+        <button class="history-btn" id="btn-clear" title="Clear all">🗑 Clear</button>
+      </div>
+    </div>
+
+    <div class="panel-section" id="gesture-guide">
+      <div class="panel-label">Gestures</div>
+      <div class="gesture-list">
+        <div class="gesture-item"><span>☝️</span><span>Index finger — Draw</span></div>
+        <div class="gesture-item"><span>✌️</span><span>Index + Middle — Erase</span></div>
+        <div class="gesture-item"><span>🖐</span><span>Open palm — Pause</span></div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- CENTRE: WEBCAM -->
+  <div class="cam-panel" id="cam-panel">
+    <div class="cam-panel-label">📷 Live Hand Tracking</div>
+    <div class="cam-frame-box" style="position:relative;">
+      <video id="webcam" autoplay muted playsinline></video>
+      <canvas id="cam-trace-canvas"></canvas>
+      <canvas id="overlay-canvas"></canvas>
+      <div class="gesture-indicator" id="gesture-indicator"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT: DRAW CANVAS -->
+  <div class="right-panel">
+    <div class="draw-section">
+      <div class="draw-label">🎨 Your Canvas</div>
+      <div class="draw-frame-box">
+        <canvas id="draw-canvas"></canvas>
+      </div>
+    </div>
+    <div class="done-drawing-wrap">
+      <button class="btn-done" id="btn-done-drawing">Done Sketching ↓</button>
+    </div>
+  </div>
+
+</div><!-- /canvas-layout -->
+
+<!-- GENERATION SECTION -->
+<div class="gen-section" id="gen-section" style="display:none;">
+  <h3>🎨 Generate AI Art from your sketch</h3>
+
+  <div class="hf-row">
+    <label>HF Token:</label>
+    <input type="password" id="hf-token" class="hf-input" placeholder="hf_… (free at huggingface.co/settings/tokens)"/>
+    <button id="btn-save-token" class="hf-save">Save</button>
+  </div>
+
+  <div class="desc-wrap">
+    <textarea id="ai-description" class="ai-desc-input" rows="3"
+      placeholder="Optional description — e.g. 'blue sky background, sunset colours'. Your sketch is the main reference."></textarea>
+    <button class="voice-btn" id="btn-voice" title="Voice input">🎤</button>
+    <span class="interim-text" id="interim-text"></span>
+  </div>
+
+  <button class="btn-generate" id="btn-generate">✨ Generate AI Art</button>
+  <div class="ai-error" id="ai-error"></div>
+
+  <div class="ai-result-area">
+    <div class="ai-placeholder" id="ai-placeholder">
+      <span class="ai-placeholder-icon">🎨</span>
+      <span>Your AI art will appear here</span>
+    </div>
+    <div class="ai-loading" id="ai-loading">
+      <div class="ai-spinner"></div>
+      <span id="ai-loading-text">Generating… this may take 1–2 minutes</span>
+    </div>
+    <div id="ai-result-wrap">
+      <div class="ai-img-wrap" id="ai-img-wrap" style="display:none;">
+        <img id="ai-result-img" src="" alt="AI Generated"/>
+      </div>
+      <button class="btn-stick" id="btn-stick-it">📌 Save to Gallery</button>
+    </div>
+  </div>
+</div>
+
+<!-- GALLERY MODAL -->
+<div class="gallery-modal" id="gallery-modal" style="display:none;">
+  <div class="gallery-modal-inner">
+    <div class="gallery-modal-header">
+      <h2>🖼 My Art Wall</h2>
+      <button class="gallery-close" id="gallery-close">✕</button>
+    </div>
+    <div class="gallery-grid" id="gallery-grid">
+      <div class="gallery-empty" id="gallery-empty">No images yet — generate some AI art and save it here!</div>
+    </div>
+  </div>
+</div>
+
+<!-- GALLERY DETAIL MODAL -->
+<div class="gallery-detail-modal" id="gallery-detail-modal" style="display:none;">
+  <div class="gallery-detail-inner">
+    <div class="gallery-detail-header">
+      <h2>🎨 Artwork Detail</h2>
+      <button class="gallery-close" id="gallery-detail-close">✕</button>
+    </div>
+    <div class="gallery-detail-grid">
+      <div>
+        <div class="gallery-detail-label">AI Generated Image</div>
+        <img id="detail-ai-img" src="" alt="AI Art"/>
+      </div>
+      <div>
+        <div class="gallery-detail-label">Your Sketch</div>
+        <img id="detail-sketch-img" src="" alt="Sketch"/>
+      </div>
+    </div>
+    <div class="gallery-detail-desc" id="detail-desc" style="display:none;"></div>
+  </div>
+</div>
+
+<script src="js/canvas.js"></script>
+</body>
+</html>
