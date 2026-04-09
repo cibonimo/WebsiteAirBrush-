@@ -1,18 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Airbrush — The No-Touch Art Machine</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css"/>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>AirBrush — Draw in the Air</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+<style>
+  * { font-family: 'Calibri Light', Calibri, 'DM Sans', sans-serif !important; }
+  h1, h2, h3, .hero-title, .section-title, .logo-text {
+    font-family: 'Calibri Light', Calibri, Syne, sans-serif !important;
+  }
+</style>
 </head>
 <body>
-
+<!-- PARTICLES BACKGROUND -->
 <canvas id="particles-canvas"></canvas>
 
-<!-- NAVBAR -->
+<!-- ═══════════════════════════════════════════
+     NAVBAR
+═══════════════════════════════════════════ -->
 <nav class="navbar" id="navbar">
   <div class="nav-logo">
     <div class="logo-icon">
@@ -32,164 +40,249 @@
         </defs>
       </svg>
     </div>
-    <span class="logo-text">Airbrush</span>
-  </div>
-  <div class="nav-links">
-    <a href="tutorial.html" class="btn-nav-ghost">Tutorial</a>
-    <a href="#gallery" class="btn-nav-ghost" id="gallery-nav-btn">Gallery</a>
+    <span class="logo-text">AirBrush</span>
   </div>
   <div class="nav-actions">
-    <a href="login.html" class="btn-nav-ghost" id="nav-login-btn">Log In</a>
-    <a href="signup.html" class="btn-nav-primary" id="nav-signup-btn">Sign Up</a>
+    <a href="#gallery-section" class="btn-nav-ghost">Gallery</a>
+    <a href="login.html" class="btn-nav-ghost">Log In</a>
+    <a href="signup.html" class="btn-nav-primary">Sign Up</a>
   </div>
 </nav>
 
-<!-- HERO -->
+<!-- ═══════════════════════════════════════════
+     HERO SECTION
+═══════════════════════════════════════════ -->
 <section class="hero" id="hero">
   <div class="hero-video-wrap">
-    <video autoplay muted loop playsinline>
+    <video autoplay muted loop playsinline id="hero-video">
       <source src="assets/video/websitebgvideo.mp4" type="video/mp4"/>
     </video>
     <div class="hero-overlay"></div>
   </div>
   <div class="hero-content">
-    <p class="hero-slogan reveal">Think it. Trace it. See it. Your imagination, now in motion.</p>
-    <h1 class="hero-title reveal">The no-touch<br/><span class="grad-text">art machine.</span></h1>
-    <p class="hero-tagline reveal">Who needs a mouse anyway?</p>
+    <div class="hero-badge reveal">✦ Final Year Project 2025</div>
+    <h1 class="hero-title reveal">
+      The future of art<br/>
+      is in your hands —<br/>
+      <span class="grad-text">literally.</span>
+    </h1>
+    <p class="hero-sub reveal">
+      Draw in mid-air using hand gestures via webcam.<br/>
+      Let AI transform your sketches into breathtaking visuals.
+    </p>
     <div class="hero-cta reveal">
-      <a href="#" class="btn-primary" id="start-now-btn">Start Now</a>
+      <a href="signup.html" class="btn-primary">Start Drawing Free</a>
+      <a href="#how-it-works" class="btn-ghost">See How It Works ↓</a>
+    </div>
+  </div>
+  <div class="hero-scroll-hint">scroll</div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     HOW IT WORKS
+═══════════════════════════════════════════ -->
+<section class="section how-it-works" id="how-it-works">
+  <div class="container">
+    <div class="section-label reveal">How It Works</div>
+    <h2 class="section-title reveal">Three steps to<br/><span class="grad-text">pure creativity</span></h2>
+    <div class="steps-grid">
+      <div class="step-card reveal">
+        <div class="step-number">01</div>
+        <div class="step-icon">✋</div>
+        <h3>Open your webcam</h3>
+        <p>AirBrush detects your hand in real-time using MediaPipe skeleton tracking — no extra hardware needed.</p>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-number">02</div>
+        <div class="step-icon">🎨</div>
+        <h3>Draw in the air</h3>
+        <p>Move your fingers through the air. Your gestures are traced onto a live canvas beside the webcam feed.</p>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-card reveal">
+        <div class="step-number">03</div>
+        <div class="step-icon">🤖</div>
+        <h3>Generate with AI</h3>
+        <p>Add a text description, hit Generate — and watch AI turn your rough sketch into a photorealistic image.</p>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- SCROLL ANIMATION GALLERY -->
-<section class="scroll-gallery" id="scroll-gallery">
-  <div class="scroll-gallery-track" id="gallery-track">
-    <!-- dynamically populated from homepageImages array in main.js -->
-  </div>
-</section>
-
-<!-- STATS / TECH STACK COUNTERS -->
-<section class="section" id="stats">
-  <div class="container">
-    <div class="section-label reveal">By the Numbers</div>
-    <h2 class="section-title reveal">Built to scale,<br/><span class="grad-text">built to create.</span></h2>
-    <div class="stats-grid">
-      <div class="stat-card reveal">
-        <div class="stat-number" data-target="1234">0</div>
-        <div class="stat-label">Placeholder Stat A</div>
-      </div>
-      <div class="stat-card reveal">
-        <div class="stat-number" data-target="5678">0</div>
-        <div class="stat-label">Placeholder Stat B</div>
-      </div>
-      <div class="stat-card reveal">
-        <div class="stat-number" data-target="9012">0</div>
-        <div class="stat-label">Placeholder Stat C</div>
-      </div>
-      <div class="stat-card reveal">
-        <div class="stat-number" data-target="3456">0</div>
-        <div class="stat-label">Placeholder Stat D</div>
-      </div>
+<!-- ═══════════════════════════════════════════
+     VISION SECTION
+═══════════════════════════════════════════ -->
+<section class="section vision" id="vision">
+  <div class="container vision-inner">
+    <div class="vision-left reveal">
+      <div class="section-label">Our Vision</div>
+      <h2 class="section-title">No pen.<br/>No paper.<br/><span class="grad-text">Pure creativity.</span></h2>
+    </div>
+    <div class="vision-right reveal">
+      <p class="vision-para">
+        Art has always been limited by what you can hold — a pen, a brush, a stylus. AirBrush was built to challenge that. We believe creativity shouldn't wait for the right tool to be in your hand.
+      </p>
+      <p class="vision-para">
+        Using just a webcam and the natural movement of your fingers, AirBrush transforms mid-air gestures into real drawings — and then takes it further, using artificial intelligence to turn those rough sketches into fully realized, photorealistic imagery.
+      </p>
+      <p class="vision-para">
+        But AirBrush isn't just about drawing. It reimagines how humans interact with technology — replacing passwords and PINs with gestures, signatures, and faces. It's a vision of computing that's more human, more expressive, and more intuitive. We built AirBrush because we believe the most powerful interface is one you already know how to use: <em>your own body.</em>
+      </p>
     </div>
   </div>
 </section>
 
-<!-- CREATE ART WITHOUT LIMITS -->
-<section class="section" id="create-section">
+<!-- ═══════════════════════════════════════════
+     FEATURES SECTION
+═══════════════════════════════════════════ -->
+<section class="section features" id="features">
   <div class="container">
-    <div class="split-section">
-      <div class="split-left reveal">
-        <h2>Create art without<br/><span class="grad-text">touching a screen.</span></h2>
-        <p>Wave your hand, draw your idea, and let AI bring it to life.</p>
+    <div class="section-label reveal">Features</div>
+    <h2 class="section-title reveal">Everything you need.<br/><span class="grad-text">Nothing you don't.</span></h2>
+    <div class="features-group">
+      <p class="features-group-label reveal">✦ Core Canvas</p>
+      <div class="features-grid">
+        <div class="feature-card reveal">
+          <div class="feature-icon">🖐️</div>
+          <h3>Air Drawing</h3>
+          <p>Draw in real-time using hand skeleton tracking via webcam. Zero touch required — just move your finger through the air.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🖱️</div>
+          <h3>Mouse Mode</h3>
+          <p>Switch seamlessly to classic mouse drawing on the same canvas whenever you prefer traditional input.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🤖</div>
+          <h3>AI Image Generation</h3>
+          <p>Convert your rough sketch and a text description into a stunning photorealistic AI-generated image instantly.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎙️</div>
+          <h3>Voice-to-Text</h3>
+          <p>Describe your artwork using your voice. The Web Speech API auto-fills the description box hands-free.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">↩️</div>
+          <h3>Gesture Controls</h3>
+          <p>Shake your fist to clear. Raise two fingers to erase. Open palm to pause. Edit your canvas without touching anything.</p>
+        </div>
+        <div class="feature-card reveal">
+          <div class="feature-icon">🎨</div>
+          <h3>Full Toolkit</h3>
+          <p>Colour picker, brush size control, eraser, undo, and clear — all neatly organised in one side panel.</p>
+        </div>
       </div>
-      <div class="split-right reveal">
-        <div class="collage-grid" id="collage-grid">
-          <div class="collage-placeholder">Add images to assets/homepage images/</div>
+    </div>
+    <div class="features-group" style="margin-top: 4rem;">
+      <p class="features-group-label reveal">✦ Authentication System</p>
+      <div class="features-grid features-grid-4">
+        <div class="feature-card reveal auth-card">
+          <div class="feature-icon">✍️</div>
+          <h3>Signature Auth</h3>
+          <p>Register and log in by drawing your unique air signature — tracked by your webcam.</p>
+        </div>
+        <div class="feature-card reveal auth-card">
+          <div class="feature-icon">🔢</div>
+          <h3>Finger PIN</h3>
+          <p>Set a 4-digit PIN using raised fingers. Each digit is auto-detected after a 2-second stable hold.</p>
+        </div>
+        <div class="feature-card reveal auth-card">
+          <div class="feature-icon">🔷</div>
+          <h3>Pattern Auth</h3>
+          <p>Draw a custom gesture pattern as your password — traced through the air.</p>
+        </div>
+        <div class="feature-card reveal auth-card">
+          <div class="feature-icon">👤</div>
+          <h3>Face Recognition 2FA</h3>
+          <p>Every login is paired with facial recognition for dual-layer biometric security.</p>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- BUILT FOR MAKERS (TABS) -->
-<section class="section tabs-section" id="makers">
+<!-- ═══════════════════════════════════════════
+     GALLERY SECTION
+═══════════════════════════════════════════ -->
+<section class="section future" id="gallery-section">
   <div class="container">
-    <div class="section-label reveal">Crafted for</div>
-    <h2 class="section-title reveal">Crafted for<br/><span class="grad-text">intuitive creation</span></h2>
-
-    <div class="tab-bar reveal">
-      <button class="tab-btn active" data-tab="artists">Artists</button>
-      <button class="tab-btn" data-tab="designers">Designers</button>
-      <button class="tab-btn" data-tab="photographers">Photographers</button>
-      <button class="tab-btn" data-tab="marketers">Marketers</button>
+    <div class="section-label reveal">Gallery</div>
+    <h2 class="section-title reveal">Your<br/><span class="grad-text">creations.</span></h2>
+    <p style="text-align:center;color:var(--text-muted);margin-bottom:2rem;" class="reveal">Sign in to view and save your AI-generated artwork.</p>
+    <div style="text-align:center;" class="reveal">
+      <a href="login.html" class="btn-primary">View My Gallery</a>
     </div>
-
-    <!-- ARTISTS -->
-    <div class="tab-content active" id="tab-artists">
-      <div class="section-images-grid">
-        <img src="assets/sections/artists-1.webp" alt="Artist creation 1"/>
-        <img src="assets/sections/artists-2.avif" alt="Artist creation 2"/>
-        <img src="assets/sections/artists-3.avif" alt="Artist creation 3"/>
-      </div>
-    </div>
-
-    <!-- DESIGNERS -->
-    <div class="tab-content" id="tab-designers">
-      <div class="section-images-grid">
-        <img src="assets/sections/designers-1.avif" alt="Designer creation 1"/>
-        <img src="assets/sections/designers-2.avif" alt="Designer creation 2"/>
-        <img src="assets/sections/designers-3.avif" alt="Designer creation 3"/>
-      </div>
-    </div>
-
-    <!-- PHOTOGRAPHERS -->
-    <div class="tab-content" id="tab-photographers">
-      <div class="section-images-grid">
-        <img src="assets/sections/photographers-2.avif" alt="Photographer creation 1"/>
-        <img src="assets/sections/photographers-3.avif" alt="Photographer creation 2"/>
-        <img src="assets/sections/photographers-4.avif" alt="Photographer creation 3"/>
-      </div>
-    </div>
-
-    <!-- MARKETERS -->
-    <div class="tab-content" id="tab-marketers">
-      <div class="section-images-grid">
-        <img src="assets/sections/marketers-1.avif" alt="Marketer creation 1"/>
-        <img src="assets/sections/marketers-2.jpg"  alt="Marketer creation 2"/>
-        <img src="assets/sections/marketers-3.jpg"  alt="Marketer creation 3"/>
-      </div>
-    </div>
-
   </div>
 </section>
 
-<!-- API SECTION -->
-<section class="section">
-  <div class="api-section reveal">
-    <h2>Bring hands-free AI creation<br/>into your <span class="grad-text">products.</span></h2>
-    <p>Easy to integrate and built to scale.</p>
-    <a href="#" class="btn-primary">Explore API</a>
-  </div>
-</section>
-
-<!-- GET STARTED -->
-<section class="section get-started-section reveal" id="get-started">
-  <h2>Get started with <span class="grad-text">AirBrush</span></h2>
-  <p>New to Airbrush? Learn to draw in the air, refine your sketches, and create with AI.</p>
-  <a href="tutorial.html" class="btn-primary">View Tutorial</a>
-</section>
-
-<!-- GALLERY SECTION -->
-<section class="section gallery-section" id="gallery">
+<!-- ═══════════════════════════════════════════
+     FUTURE SCOPE
+═══════════════════════════════════════════ -->
+<section class="section future" id="future">
   <div class="container">
-    <div class="section-label reveal">Your Gallery</div>
-    <h2 class="section-title reveal">Your <span class="grad-text">Art Gallery</span></h2>
-    <div id="gallery-area"></div>
+    <div class="section-label reveal">What's Coming</div>
+    <h2 class="section-title reveal">The roadmap<br/><span class="grad-text">ahead.</span></h2>
+    <div class="future-grid">
+      <div class="future-card reveal">
+        <span class="future-tag">Collaboration</span>
+        <h3>Multi-hand Collaboration</h3>
+        <p>Two users draw on the same canvas simultaneously from different webcams in real time.</p>
+      </div>
+      <div class="future-card reveal">
+        <span class="future-tag">Dimension</span>
+        <h3>3D Air Drawing</h3>
+        <p>Depth-sensing support for drawing in three-dimensional space — the next frontier.</p>
+      </div>
+      <div class="future-card reveal">
+        <span class="future-tag">Export</span>
+        <h3>Canvas Export</h3>
+        <p>Download your sketch or AI-generated image in PNG, SVG, or PDF format.</p>
+      </div>
+      <div class="future-card reveal">
+        <span class="future-tag">Mobile</span>
+        <h3>Mobile Support</h3>
+        <p>Extend air drawing to smartphone front cameras for on-the-go creativity.</p>
+      </div>
+      <div class="future-card reveal">
+        <span class="future-tag">Animation</span>
+        <h3>Animated Output</h3>
+        <p>Generate short animated clips from sketches — not just static images.</p>
+      </div>
+      <div class="future-card reveal">
+        <span class="future-tag">Accessibility</span>
+        <h3>Accessibility Mode</h3>
+        <p>Adapted gestures and controls for users with limited mobility.</p>
+      </div>
+    </div>
   </div>
 </section>
 
-<!-- FOOTER -->
+<!-- ═══════════════════════════════════════════
+     TECH STACK
+═══════════════════════════════════════════ -->
+<section class="section techstack" id="tech">
+  <div class="container">
+    <div class="section-label reveal">Built With</div>
+    <h2 class="section-title reveal">The tech<br/><span class="grad-text">behind the magic.</span></h2>
+    <div class="tech-grid">
+      <div class="tech-pill reveal">MediaPipe Hands</div>
+      <div class="tech-pill reveal">face-api.js</div>
+      <div class="tech-pill reveal">Web Speech API</div>
+      <div class="tech-pill reveal">Hugging Face API</div>
+      <div class="tech-pill reveal">HTML5 Canvas</div>
+      <div class="tech-pill reveal">Vanilla JavaScript</div>
+      <div class="tech-pill reveal">CSS3 + Glassmorphism</div>
+      <div class="tech-pill reveal">LocalStorage</div>
+      <div class="tech-pill reveal">Vercel Hosting</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════
+     FOOTER
+═══════════════════════════════════════════ -->
 <footer class="footer">
   <div class="container footer-inner">
     <div class="footer-brand">
@@ -211,40 +304,36 @@
             </defs>
           </svg>
         </div>
-        <span class="logo-text">Airbrush</span>
+        <span class="logo-text">AirBrush</span>
       </div>
       <p class="footer-tagline">Gestures become art.<br/>Air becomes your studio.</p>
     </div>
     <div class="footer-links">
       <div class="footer-col">
-        <p class="footer-col-title">Create</p>
-        <a href="canvas.html">Start Drawing</a>
-        <a href="tutorial.html">Tutorial</a>
-        <a href="#gallery">Gallery</a>
+        <p class="footer-col-title">Product</p>
+        <a href="#how-it-works">How It Works</a>
+        <a href="#features">Features</a>
+        <a href="#future">Roadmap</a>
       </div>
       <div class="footer-col">
-        <p class="footer-col-title">About</p>
-        <a href="#create-section">Vision</a>
-        <a href="#makers">For Creators</a>
+        <p class="footer-col-title">Account</p>
+        <a href="signup.html">Sign Up</a>
+        <a href="login.html">Log In</a>
+        <a href="#gallery-section">Gallery</a>
       </div>
       <div class="footer-col">
-        <p class="footer-col-title">Tech Stack</p>
-        <a href="#">MediaPipe Hands</a>
-        <a href="#">Hugging Face API</a>
-        <a href="#">Web Speech API</a>
+        <p class="footer-col-title">Project</p>
+        <a href="#tech">Tech Stack</a>
+        <a href="#vision">Vision</a>
       </div>
     </div>
   </div>
-  <div class="footer-qr">
-    <div id="qr-canvas"></div>
-    <div class="footer-brand-big">
-      Airbrush.ai by vb
-      <span>The no-touch art machine</span>
-    </div>
+  <div class="footer-bottom">
+    <p>Final Year Project — B.E. Computer Engineering · Batch 2025</p>
+    <p>Built with ♥ by <strong>Vaibhav</strong> · AirBrush © 2025</p>
   </div>
 </footer>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>
