@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Airbrush — The No-Touch Art Machine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+
+<canvas id="particles-canvas"></canvas>
+
+<!-- NAVBAR -->
+<nav class="navbar" id="navbar">
+  <div class="nav-logo">
+    <div class="logo-icon">
+      <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+        <circle cx="16" cy="16" r="15" stroke="url(#lg1)" stroke-width="1.5"/>
+        <path d="M8 22 Q12 10 16 14 Q20 18 24 8" stroke="url(#lg2)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <circle cx="24" cy="8" r="2.5" fill="url(#lg2)"/>
+        <defs>
+          <linearGradient id="lg1" x1="0" y1="0" x2="32" y2="32">
+            <stop offset="0%" stop-color="#7C3AED"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+          <linearGradient id="lg2" x1="8" y1="22" x2="24" y2="8">
+            <stop offset="0%" stop-color="#7C3AED"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+        </defs>
+      </svg>
+    </div>
+    <span class="logo-text">Airbrush</span>
+  </div>
+  <div class="nav-links">
+    <a href="tutorial.html" class="btn-nav-ghost">Tutorial</a>
+    <a href="#gallery" class="btn-nav-ghost" id="gallery-nav-btn">Gallery</a>
+  </div>
+  <div class="nav-actions">
+    <a href="login.html" class="btn-nav-ghost" id="nav-login-btn">Log In</a>
+    <a href="signup.html" class="btn-nav-primary" id="nav-signup-btn">Sign Up</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero" id="hero">
+  <div class="hero-video-wrap">
+    <video autoplay muted loop playsinline>
+      <source src="assets/video/websitebgvideo.mp4" type="video/mp4"/>
+    </video>
+    <div class="hero-overlay"></div>
+  </div>
+  <div class="hero-content">
+    <p class="hero-slogan reveal">Think it. Trace it. See it. Your imagination, now in motion.</p>
+    <h1 class="hero-title reveal">The no-touch<br/><span class="grad-text">art machine.</span></h1>
+    <p class="hero-tagline reveal">Who needs a mouse anyway?</p>
+    <div class="hero-cta reveal">
+      <a href="#" class="btn-primary" id="start-now-btn">Start Now</a>
+    </div>
+  </div>
+</section>
+
+<!-- SCROLL ANIMATION GALLERY -->
+<section class="scroll-gallery" id="scroll-gallery">
+  <div class="scroll-gallery-track" id="gallery-track">
+    <!-- dynamically populated from homepageImages array in main.js -->
+  </div>
+</section>
+
+<!-- STATS / TECH STACK COUNTERS -->
+<section class="section" id="stats">
+  <div class="container">
+    <div class="section-label reveal">By the Numbers</div>
+    <h2 class="section-title reveal">Built to scale,<br/><span class="grad-text">built to create.</span></h2>
+    <div class="stats-grid">
+      <div class="stat-card reveal">
+        <div class="stat-number" data-target="1234">0</div>
+        <div class="stat-label">Placeholder Stat A</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number" data-target="5678">0</div>
+        <div class="stat-label">Placeholder Stat B</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number" data-target="9012">0</div>
+        <div class="stat-label">Placeholder Stat C</div>
+      </div>
+      <div class="stat-card reveal">
+        <div class="stat-number" data-target="3456">0</div>
+        <div class="stat-label">Placeholder Stat D</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CREATE ART WITHOUT LIMITS -->
+<section class="section" id="create-section">
+  <div class="container">
+    <div class="split-section">
+      <div class="split-left reveal">
+        <h2>Create art without<br/><span class="grad-text">touching a screen.</span></h2>
+        <p>Wave your hand, draw your idea, and let AI bring it to life.</p>
+      </div>
+      <div class="split-right reveal">
+        <div class="collage-grid" id="collage-grid">
+          <div class="collage-placeholder">Add images to assets/homepage images/</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- BUILT FOR MAKERS (TABS) -->
+<section class="section tabs-section" id="makers">
+  <div class="container">
+    <div class="section-label reveal">Crafted for</div>
+    <h2 class="section-title reveal">Crafted for<br/><span class="grad-text">intuitive creation</span></h2>
+
+    <div class="tab-bar reveal">
+      <button class="tab-btn active" data-tab="artists">Artists</button>
+      <button class="tab-btn" data-tab="designers">Designers</button>
+      <button class="tab-btn" data-tab="photographers">Photographers</button>
+      <button class="tab-btn" data-tab="marketers">Marketers</button>
+    </div>
+
+    <!-- ARTISTS -->
+    <div class="tab-content active" id="tab-artists">
+      <div class="section-images-grid">
+        <img src="assets/sections/artists-1.webp" alt="Artist creation 1"/>
+        <img src="assets/sections/artists-2.avif" alt="Artist creation 2"/>
+        <img src="assets/sections/artists-3.avif" alt="Artist creation 3"/>
+      </div>
+    </div>
+
+    <!-- DESIGNERS -->
+    <div class="tab-content" id="tab-designers">
+      <div class="section-images-grid">
+        <img src="assets/sections/designers-1.avif" alt="Designer creation 1"/>
+        <img src="assets/sections/designers-2.avif" alt="Designer creation 2"/>
+        <img src="assets/sections/designers-3.avif" alt="Designer creation 3"/>
+      </div>
+    </div>
+
+    <!-- PHOTOGRAPHERS -->
+    <div class="tab-content" id="tab-photographers">
+      <div class="section-images-grid">
+        <img src="assets/sections/photographers-2.avif" alt="Photographer creation 1"/>
+        <img src="assets/sections/photographers-3.avif" alt="Photographer creation 2"/>
+        <img src="assets/sections/photographers-4.avif" alt="Photographer creation 3"/>
+      </div>
+    </div>
+
+    <!-- MARKETERS -->
+    <div class="tab-content" id="tab-marketers">
+      <div class="section-images-grid">
+        <img src="assets/sections/marketers-1.avif" alt="Marketer creation 1"/>
+        <img src="assets/sections/marketers-2.jpg"  alt="Marketer creation 2"/>
+        <img src="assets/sections/marketers-3.jpg"  alt="Marketer creation 3"/>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- API SECTION -->
+<section class="section">
+  <div class="api-section reveal">
+    <h2>Bring hands-free AI creation<br/>into your <span class="grad-text">products.</span></h2>
+    <p>Easy to integrate and built to scale.</p>
+    <a href="#" class="btn-primary">Explore API</a>
+  </div>
+</section>
+
+<!-- GET STARTED -->
+<section class="section get-started-section reveal" id="get-started">
+  <h2>Get started with <span class="grad-text">AirBrush</span></h2>
+  <p>New to Airbrush? Learn to draw in the air, refine your sketches, and create with AI.</p>
+  <a href="tutorial.html" class="btn-primary">View Tutorial</a>
+</section>
+
+<!-- GALLERY SECTION -->
+<section class="section gallery-section" id="gallery">
+  <div class="container">
+    <div class="section-label reveal">Your Gallery</div>
+    <h2 class="section-title reveal">Your <span class="grad-text">Art Gallery</span></h2>
+    <div id="gallery-area"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer">
+  <div class="container footer-inner">
+    <div class="footer-brand">
+      <div class="nav-logo" style="margin-bottom:0.75rem;">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="15" stroke="url(#flg1)" stroke-width="1.5"/>
+            <path d="M8 22 Q12 10 16 14 Q20 18 24 8" stroke="url(#flg2)" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+            <circle cx="24" cy="8" r="2.5" fill="url(#flg2)"/>
+            <defs>
+              <linearGradient id="flg1" x1="0" y1="0" x2="32" y2="32">
+                <stop offset="0%" stop-color="#7C3AED"/>
+                <stop offset="100%" stop-color="#06B6D4"/>
+              </linearGradient>
+              <linearGradient id="flg2" x1="8" y1="22" x2="24" y2="8">
+                <stop offset="0%" stop-color="#7C3AED"/>
+                <stop offset="100%" stop-color="#06B6D4"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <span class="logo-text">Airbrush</span>
+      </div>
+      <p class="footer-tagline">Gestures become art.<br/>Air becomes your studio.</p>
+    </div>
+    <div class="footer-links">
+      <div class="footer-col">
+        <p class="footer-col-title">Create</p>
+        <a href="canvas.html">Start Drawing</a>
+        <a href="tutorial.html">Tutorial</a>
+        <a href="#gallery">Gallery</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-col-title">About</p>
+        <a href="#create-section">Vision</a>
+        <a href="#makers">For Creators</a>
+      </div>
+      <div class="footer-col">
+        <p class="footer-col-title">Tech Stack</p>
+        <a href="#">MediaPipe Hands</a>
+        <a href="#">Hugging Face API</a>
+        <a href="#">Web Speech API</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-qr">
+    <div id="qr-canvas"></div>
+    <div class="footer-brand-big">
+      Airbrush.ai by vb
+      <span>The no-touch art machine</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
