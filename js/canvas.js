@@ -57,6 +57,7 @@ const navUser       = document.getElementById('nav-user');
 const btnStart      = document.getElementById('btn-start');
 const btnStop       = document.getElementById('btn-stop');
 const btnUndo       = document.getElementById('btn-undo');
+const btnRedo       = document.getElementById('btn-redo');
 const btnClear      = document.getElementById('btn-clear');
 const btnAirMode    = document.getElementById('btn-air-mode');
 const btnMouseMode  = document.getElementById('btn-mouse-mode');
@@ -80,6 +81,7 @@ let currentOpacity = 1;
 let isDrawing      = false;
 let lastX = 0, lastY = 0;
 let undoStack      = [];
+let redoStack      = [];
 
 // Camera & MediaPipe state
 let camStream      = null;
@@ -129,6 +131,7 @@ setTimeout(resizeCanvases, 200);
 function saveUndo() {
   undoStack.push(drawCtx.getImageData(0,0,drawCanvas.width,drawCanvas.height));
   if (undoStack.length > 30) undoStack.shift();
+  redoStack = []; // clear redo on new action
 }
 
 function applyBrushStyle(ctx, isErase) {
@@ -212,7 +215,13 @@ document.querySelectorAll('.swatch').forEach(s => {
 });
 btnUndo?.addEventListener('click', () => {
   if (!undoStack.length) return;
+  redoStack.push(drawCtx.getImageData(0,0,drawCanvas.width,drawCanvas.height));
   drawCtx.putImageData(undoStack.pop(), 0, 0);
+});
+btnRedo?.addEventListener('click', () => {
+  if (!redoStack.length) return;
+  undoStack.push(drawCtx.getImageData(0,0,drawCanvas.width,drawCanvas.height));
+  drawCtx.putImageData(redoStack.pop(), 0, 0);
 });
 btnClear?.addEventListener('click', () => {
   saveUndo();
