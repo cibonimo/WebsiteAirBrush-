@@ -604,14 +604,8 @@ btnVoice?.addEventListener('click', () => {
 });
 
 /* AI IMAGE GENERATION
-   Model priority when a sketch exists:
-   1. ControlNet Scribble (SD1.5) — preserves the exact shape you drew + applies your description
-   2. ControlNet Scribble (SD1.5 v2 alt endpoint) — retry with alternate HF endpoint
-   3. FLUX.1-schnell  — text-only fast fallback
-   4. SDXL-base-1.0   — text-only fallback
-   5. SD v1.5         — text-only last resort
-
-   When no sketch: starts at FLUX.
+   Primary engine : Pollinations.AI — 100% free, no API key needed, uses real FLUX
+   Fallback        : HuggingFace (if user has a valid token)
 */
 const btnGenerate   = document.getElementById('btn-generate');
 const aiPlaceholder = document.getElementById('ai-placeholder');
@@ -625,30 +619,22 @@ const btnStick      = document.getElementById('btn-stick-it');
 const NEG_PROMPT = 'blurry, low quality, ugly, distorted, deformed, text, watermark, cartoon, anime';
 
 btnGenerate?.addEventListener('click', async () => {
-  const token = getHFToken();
-  if (!token) {
-    showAiError('Please enter your Hugging Face token above.\nGet one free at huggingface.co → Settings → Access Tokens\nThen paste it in the HF Token field and click Save.');
-    return;
-  }
-
   const userDesc = aiDescInput?.value.trim() || '';
 
-  // Prompt is purely the user's description — shape comes from the sketch image itself
+  /* Build a clean, descriptive prompt from whatever the user typed.
+     If nothing typed, fall back to generic art prompt. */
   const prompt = userDesc
-    ? userDesc + ', high quality, detailed, sharp, 8k'
-    : 'abstract colorful art, high quality, detailed';
+    ? userDesc + ', high quality, detailed, sharp, digital art, 8k'
+    : 'beautiful abstract colorful art, vibrant, high quality, detailed';
 
-  // Extract sketch as white-on-black scribble image for ControlNet
-  const sketchBase64 = getSketchForControlNet(drawCanvas);
-
-  setGenLoading(true, '⚡ Sending to AI…');
+  setGenLoading(true, '🎨 Generating your image…');
   hideAiError();
   if (aiPlaceholder) aiPlaceholder.style.display = 'none';
   if (aiImgWrap)     aiImgWrap.style.display      = 'none';
   if (btnStick)      btnStick.style.display        = 'none';
 
   try {
-    const imgUrl = await runGeneration(prompt, token, sketchBase64);
+    const imgUrl = await runGeneration(prompt, getHFToken());
     setGenLoading(false);
     aiResultImg.src         = imgUrl;
     aiImgWrap.style.display = '';
@@ -658,173 +644,151 @@ btnGenerate?.addEventListener('click', async () => {
     btnStick._description   = userDesc;
   } catch(e) {
     setGenLoading(false);
-    showAiError('Generation failed: ' + e.message + '\n\nTip: ControlNet models can take 30–60s to wake up on the free tier. Wait a moment and try again.\nMake sure your HF token is valid at huggingface.co → Settings → Access Tokens.');
+    showAiError('Generation failed: ' + e.message);
     console.error(e);
   }
 });
 
-/* -----------------------------------------------------------------------
-   runGeneration — sketch-guided image generation via ControlNet scribble
-   sketchBase64: raw base64 PNG (white lines on black bg), or null
-   ----------------------------------------------------------------------- */
-async function runGeneration(prompt, token, sketchBase64) {
-  const hdrs = {
-    'Authorization' : 'Bearer ' + token,
-    'Content-Type'  : 'application/json',
-    'x-use-cache'   : 'false'
-  };
+/* ─────────────────────────────────────────────────────────────────────────
+   runGeneration
+   1. Pollinations.AI — free, no key, real FLUX model, always works
+   2. HuggingFace FLUX  — fallback if user has a valid HF token
+   3. HuggingFace SDXL  — second fallback
+   ───────────────────────────────────────────────────────────────────────── */
+function runGeneration(prompt, hfToken) {
+  return new Promise(async (resolve, reject) => {
 
-  /* ── 1. ControlNet Scribble ── shape-preserving, uses your actual sketch ── */
-  if (sketchBase64) {
-    const controlNetModels = [
-      'lllyasviel/control_v11p_sd15_scribble',
-      'lllyasviel/sd-controlnet-scribble'
-    ];
-    for (const model of controlNetModels) {
+    /* ── 1. Pollinations.AI ─────────────────────────────────────────────
+       Simple GET request. The URL *is* the image — no API key required.
+       Model: flux (default), width/height 768, random seed each call.
+    ─────────────────────────────────────────────────────────────────────── */
+    setGenLoading(true, '🎨 Generating via Pollinations (FLUX)… usually 15–30s');
+    try {
+      const seed = Math.floor(Math.random() * 2147483647);
+      const url  = 'https://image.pollinations.ai/prompt/'
+                 + encodeURIComponent(prompt)
+                 + '?width=768&height=768&nologo=true&seed=' + seed
+                 + '&model=flux&enhance=false';
+
+      await new Promise((imgResolve, imgReject) => {
+        const img     = new Image();
+        const timeout = setTimeout(() => {
+          img.src = '';
+          imgReject(new Error('Pollinations timed out after 90s'));
+        }, 90000);
+
+        img.onload = () => {
+          clearTimeout(timeout);
+          imgResolve();
+        };
+        img.onerror = () => {
+          clearTimeout(timeout);
+          imgReject(new Error('Pollinations image failed to load'));
+        };
+        img.src = url;   // triggers the generation + download
+      });
+
+      // Image loaded successfully — use the URL directly as the src
+      return resolve(
+        'https://image.pollinations.ai/prompt/'
+        + encodeURIComponent(prompt)
+        + '?width=768&height=768&nologo=true&seed=' + seed
+        + '&model=flux&enhance=false'
+      );
+
+    } catch(e) {
+      console.warn('Pollinations failed:', e.message);
+    }
+
+    /* ── 2. HuggingFace FLUX (fallback, needs token) ───────────────────── */
+    if (hfToken) {
+      const hdrs = {
+        'Authorization': 'Bearer ' + hfToken,
+        'Content-Type' : 'application/json',
+        'x-use-cache'  : 'false'
+      };
       try {
-        setGenLoading(true, '🎨 ControlNet: reading your sketch shape… (may take ~30s)');
+        setGenLoading(true, '⚡ Trying HuggingFace FLUX…');
         const res = await timedFetch(
-          `https://api-inference.huggingface.co/models/${model}`,
-          {
-            method : 'POST',
-            headers: hdrs,
-            body   : JSON.stringify({
-              inputs    : sketchBase64,           // raw base64 PNG of the scribble
-              parameters: {
-                prompt          : prompt,
-                negative_prompt : NEG_PROMPT,
-                num_inference_steps: 25,
-                guidance_scale  : 7.5
-              },
-              options: { wait_for_model: true, use_cache: false }
-            })
-          },
-          150000
+          'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
+          { method:'POST', headers:hdrs, body:JSON.stringify({
+            inputs    : prompt,
+            parameters: { num_inference_steps: 4, guidance_scale: 0 },
+            options   : { wait_for_model: true, use_cache: false }
+          })},
+          90000
         );
         if (res.ok) {
           const blob = await res.blob();
           if (blob.size > 500 && blob.type.startsWith('image/')) {
-            console.log('ControlNet success:', model);
-            return URL.createObjectURL(blob);
+            return resolve(URL.createObjectURL(blob));
           }
         }
         const errText = await res.text().catch(() => '');
-        console.warn(`ControlNet [${model}] failed`, res.status, errText.slice(0, 200));
-      } catch(e) { console.warn(`ControlNet [${model}] error:`, e.message); }
-    }
-    // ControlNet failed — warn and continue to text-only fallbacks
-    console.warn('Both ControlNet endpoints failed — falling back to text-only generation.');
-    setGenLoading(true, '⚠️ Sketch-guided failed, trying text generation…');
-  }
+        console.warn('HF FLUX failed', res.status, errText.slice(0, 200));
+      } catch(e) { console.warn('HF FLUX error:', e.message); }
 
-  /* ── 2. FLUX.1-schnell — fastest text-to-image fallback ── */
-  try {
-    setGenLoading(true, '⚡ FLUX: generating (usually ~10s)…');
-    const res = await timedFetch(
-      'https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell',
-      { method:'POST', headers:hdrs, body:JSON.stringify({
-        inputs    : prompt,
-        parameters: { num_inference_steps: 4, guidance_scale: 0 },
-        options   : { wait_for_model: true, use_cache: false }
-      })},
-      90000
-    );
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size > 500 && blob.type.startsWith('image/')) return URL.createObjectURL(blob);
+      /* ── 3. HuggingFace SDXL (last resort) ─────────────────────────── */
+      try {
+        setGenLoading(true, '🎨 Trying SDXL… (may take 30–60s)');
+        const hdrs2 = {
+          'Authorization': 'Bearer ' + hfToken,
+          'Content-Type' : 'application/json'
+        };
+        const res = await timedFetch(
+          'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
+          { method:'POST', headers:hdrs2, body:JSON.stringify({
+            inputs    : prompt,
+            parameters: { num_inference_steps:25, guidance_scale:7.5, negative_prompt:NEG_PROMPT },
+            options   : { wait_for_model: true, use_cache: false }
+          })},
+          120000
+        );
+        if (res.ok) {
+          const blob = await res.blob();
+          if (blob.size > 500 && blob.type.startsWith('image/')) {
+            return resolve(URL.createObjectURL(blob));
+          }
+        }
+        console.warn('SDXL failed', res.status);
+      } catch(e) { console.warn('SDXL error:', e.message); }
     }
-    const errText = await res.text().catch(() => '');
-    console.warn('FLUX failed', res.status, errText.slice(0, 200));
-  } catch(e) { console.warn('FLUX error:', e.message); }
 
-  /* ── 3. SDXL fallback ── */
-  try {
-    setGenLoading(true, '🎨 SDXL: generating (may take 30–60s)…');
-    const res = await timedFetch(
-      'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
-      { method:'POST', headers:hdrs, body:JSON.stringify({
-        inputs    : prompt,
-        parameters: { num_inference_steps:25, guidance_scale:7.5, negative_prompt:NEG_PROMPT },
-        options   : { wait_for_model: true, use_cache: false }
-      })},
-      120000
-    );
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size > 500 && blob.type.startsWith('image/')) return URL.createObjectURL(blob);
-    }
-    console.warn('SDXL failed', res.status);
-  } catch(e) { console.warn('SDXL error:', e.message); }
-
-  /* ── 4. SD v1.5 last resort ── */
-  try {
-    setGenLoading(true, '🖼 SD v1.5: generating…');
-    const res = await timedFetch(
-      'https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5',
-      { method:'POST', headers:hdrs, body:JSON.stringify({
-        inputs    : prompt,
-        parameters: { num_inference_steps:30, guidance_scale:8, negative_prompt:NEG_PROMPT },
-        options   : { wait_for_model: true, use_cache: false }
-      })},
-      120000
-    );
-    if (res.ok) {
-      const blob = await res.blob();
-      if (blob.size > 500 && blob.type.startsWith('image/')) return URL.createObjectURL(blob);
-    }
-    console.warn('SD1.5 failed', res.status);
-  } catch(e) { console.warn('SD1.5 error:', e.message); }
-
-  throw new Error('All models failed. Ensure your HF token is valid and models are not overloaded. Try again in 30 seconds.');
+    reject(new Error(
+      hfToken
+        ? 'All generation methods failed. Check your internet connection and try again.'
+        : 'Pollinations.AI is temporarily unavailable. Please try again in a moment.\n\nAlternatively, add a HuggingFace token above as a backup option.'
+    ));
+  });
 }
 
-/* Convert the draw canvas into a 512×512 scribble image for ControlNet.
-   ControlNet scribble expects: white lines on a pure black background.
-   Returns raw base64 PNG string (no data-URI prefix), or null if canvas is blank. */
+/* Convert the draw canvas into a 512×512 scribble for ControlNet (kept for future use).
+   Returns raw base64 PNG or null if canvas is blank. */
 function getSketchForControlNet(canvas) {
   try {
     const ctx  = canvas.getContext('2d');
     const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-
-    // Check if canvas has any drawn content (alpha > 20 on any pixel)
     let hasContent = false;
     for (let i = 3; i < data.length; i += 4) {
       if (data[i] > 20) { hasContent = true; break; }
     }
     if (!hasContent) return null;
-
-    // Build a 512×512 canvas: scale the sketch and convert every stroke to white on black
     const SIZE = 512;
     const off  = document.createElement('canvas');
-    off.width  = SIZE;
-    off.height = SIZE;
+    off.width  = SIZE; off.height = SIZE;
     const offCtx = off.getContext('2d');
-
-    // Black background
     offCtx.fillStyle = '#000000';
     offCtx.fillRect(0, 0, SIZE, SIZE);
-
-    // Scale the original sketch onto the 512×512 canvas
     offCtx.drawImage(canvas, 0, 0, SIZE, SIZE);
-
-    // Pixel-walk: any non-transparent pixel → white; transparent → black
     const imgData = offCtx.getImageData(0, 0, SIZE, SIZE);
     const d = imgData.data;
     for (let i = 0; i < d.length; i += 4) {
-      if (d[i + 3] > 20) {
-        d[i] = 255; d[i+1] = 255; d[i+2] = 255; d[i+3] = 255; // white stroke
-      } else {
-        d[i] = 0;   d[i+1] = 0;   d[i+2] = 0;   d[i+3] = 255; // black bg
-      }
+      if (d[i+3] > 20) { d[i]=255; d[i+1]=255; d[i+2]=255; d[i+3]=255; }
+      else              { d[i]=0;   d[i+1]=0;   d[i+2]=0;   d[i+3]=255; }
     }
     offCtx.putImageData(imgData, 0, 0);
-
-    // Return raw base64 (strip the "data:image/png;base64," prefix)
     return off.toDataURL('image/png').split(',')[1];
-  } catch(e) {
-    console.warn('getSketchForControlNet error:', e);
-    return null;
-  }
+  } catch(e) { return null; }
 }
 
 function timedFetch(url, opts, ms) {
